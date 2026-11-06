@@ -2,7 +2,7 @@ import { useState } from "react"
 import { Grid2X2, List, Package, Plus, Search, ToggleLeft, Trash2 } from "lucide-react"
 import { useBusiness } from "../businessContext"
 import PaymentCustomer from "../components/PaymentCustomer"
-import { catalogCategories, createProductId } from "../lib/catalog"
+import { createProductId } from "../lib/catalog"
 import { Button, Field, Modal, PageHeader, Status, cardClass, inputClass } from "../components/BusinessUI"
 
 function ProductsServices() {
@@ -14,7 +14,6 @@ function ProductsServices() {
   const [modal, setModal] = useState(false)
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState("")
-  const categories = catalogCategories(products)
   const [itemType, setItemType] = useState("PRODUCT")
   const [restockProduct, setRestockProduct] = useState(null)
   const [notice, setNotice] = useState("")
@@ -62,7 +61,7 @@ function ProductsServices() {
     setAdding(true)
     setAddError("")
     try {
-      const result = await addProduct({ ...data, id: createProductId(), category: data.category.trim(), item_type: itemType, price: Number(data.price), stock: itemType === "PRODUCT" ? Number(data.stock) : 0 })
+      const result = await addProduct({ ...data, id: createProductId(), category: "General", description: "", item_type: itemType, price: Number(data.price), stock: itemType === "PRODUCT" ? Number(data.stock) : 0 })
       if (result.success) { setNotice("Product added successfully."); setModal(false) }
       else setAddError(result.error || "Product save failed. Please try again.")
     } catch (error) { setAddError(error.message || "Product save failed. Please try again.") }
@@ -161,10 +160,7 @@ function ProductsServices() {
       {modal && <Modal title="Add Catalog Item" onClose={() => { if (!adding) setModal(false) }}><form onSubmit={add} className="space-y-4">
         <Field label="Item type"><select className={inputClass} value={itemType} onChange={(event) => setItemType(event.target.value)}><option value="PRODUCT">Product</option><option value="SERVICE">Service</option></select></Field>
         <p className="text-xs text-[#777]">A unique product ID will be generated automatically.</p>
-        <Field label="Product Name"><input className={inputClass} name="name" required placeholder="Gaming Session - 1 Hour" /></Field>
-        <Field label="Description"><textarea className={inputClass} name="description" required rows="2" /></Field>
-        <Field label="Category"><input className={inputClass} name="category" required placeholder="Choose or enter a category" list="catalog-categories" autoComplete="off" /></Field>
-        <datalist id="catalog-categories">{categories.map((category) => <option key={category} value={category} />)}</datalist>
+        <Field label="Product Name"><input className={inputClass} name="name" required placeholder="Enter product name" /></Field>
         <Field label="Unit price (cash)"><input className={inputClass} name="price" type="number" min="0" required placeholder="50" /></Field>
         {itemType === "PRODUCT" && <Field label="Opening Stock Quantity"><input className={inputClass} name="stock" type="number" min="0" step="1" required defaultValue="0" /></Field>}
         {addError && <p role="alert" className="text-sm text-red-300">{addError}</p>}
