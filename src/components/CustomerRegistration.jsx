@@ -17,6 +17,7 @@ export default function CustomerRegistration({ onClose, onRegistered }) {
   const [lookingUp, setLookingUp] = useState(false)
   const [confirmAccount, setConfirmAccount] = useState(null)
   const lookupTimer = useRef(null)
+  const lookupAttempts = useRef({ code: "", failures: 0 })
   const deletedCustomer = customers.find((customer) => customer.status === "DELETED" && (
     mode === "NFC" && account
       ? customer.profile_id === account.id || (!customer.profile_id && customer.email?.trim().toLowerCase() === email.trim().toLowerCase())
@@ -31,13 +32,14 @@ export default function CustomerRegistration({ onClose, onRegistered }) {
     setName("")
     setEmail("")
     setCardCode("")
+    lookupAttempts.current = { code: "", failures: 0 }
     setConfirmAccount(null)
     setError("")
   }
 
   const lookupCard = useCallback(async (value = cardCode) => {
     const code = value.trim()
-    if (lookingUp || saving || !code) return
+    if (lookingUp || saving || !code || /^\d{6}$/.test(code)) return
     setLookingUp(true)
     setError("")
     setAccount(null)
@@ -52,13 +54,28 @@ export default function CustomerRegistration({ onClose, onRegistered }) {
       setName(found.full_name || "")
       setEmail(found.email || "")
       setConfirmAccount(found)
-    } catch (failure) { setError(failure.message || "Card lookup failed.") }
+      lookupAttempts.current = { code, failures: 0 }
+    } catch (failure) {
+      if (lookupAttempts.current.code !== code) lookupAttempts.current = { code, failures: 0 }
+      lookupAttempts.current.failures += 1
+      setError(failure.message || "Card lookup failed.")
+    }
     finally { setLookingUp(false) }
   }, [business, cardCode, lookingUp, saving])
 
   useEffect(() => {
-    if (mode !== "NFC" || !cardCode.trim() || account || confirmAccount || lookingUp || saving) return undefined
-    lookupTimer.current = setTimeout(() => lookupCard(cardCode), 650)
+    const code = cardCode.trim()
+    if (
+      mode !== "NFC" ||
+      !code ||
+      /^\d{6}$/.test(code) ||
+      account ||
+      confirmAccount ||
+      lookingUp ||
+      saving ||
+      (lookupAttempts.current.code === code && lookupAttempts.current.failures >= 2)
+    ) return undefined
+    lookupTimer.current = setTimeout(() => lookupCard(code), 3000)
     return () => {
       if (lookupTimer.current) clearTimeout(lookupTimer.current)
     }
@@ -104,7 +121,7 @@ export default function CustomerRegistration({ onClose, onRegistered }) {
         <Button type="button" secondary={mode !== "ACCOUNT"} disabled={saving || lookingUp} onClick={() => changeMode("ACCOUNT")}>Create local account</Button>
         <Button type="button" secondary={mode !== "NFC"} disabled={saving || lookingUp} onClick={() => changeMode("NFC")}><CreditCard size={16} />By BuzzTap NFC Card</Button>
       </div>
-      {mode === "NFC" && <Field label="BuzzTap NFC Card Code"><div className="relative"><input className={`${inputClass} font-mono text-transparent caret-white selection:bg-white/20`} style={{ WebkitTextFillColor: "transparent" }} name="cardCode" required value={cardCode} disabled={saving || lookingUp} onChange={(event) => { setCardCode(event.target.value); setAccount(null); setConfirmAccount(null); setName(""); setEmail(""); setError("") }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); if (lookupTimer.current) clearTimeout(lookupTimer.current); lookupCard(cardCode) } }} placeholder="Tap or enter the Admin-issued card code" aria-label="BuzzTap NFC card code (masked)" autoComplete="off" /><span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-3 flex items-center font-mono text-sm text-white">{maskedCardCode}</span></div><p className="my-2 text-xs text-[#888]">Card lookup starts automatically after scanning or entering a code. The card stays linked by Admin.</p>{lookingUp && <p role="status" className="text-xs text-[#F5C400]">Finding customer…</p>}</Field>}
+      {mode === "NFC" && <Field label="BuzzTap NFC Card Code"><div className="relative"><input className={`${inputClass} font-mono text-transparent caret-white selection:bg-white/20`} style={{ WebkitTextFillColor: "transparent" }} name="cardCode" required value={cardCode} disabled={saving || lookingUp} onChange={(event) => { const value = event.target.value; setCardCode(value); if (lookupAttempts.current.code !== value.trim()) lookupAttempts.current = { code: value.trim(), failures: 0 }; setAccount(null); setConfirmAccount(null); setName(""); setEmail(""); setError("") }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); if (lookupTimer.current) clearTimeout(lookupTimer.current); lookupCard(cardCode) } }} placeholder="Tap or enter the Admin-issued card code" aria-label="BuzzTap NFC card code (masked)" autoComplete="off" /><span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-3 flex items-center font-mono text-sm text-white">{maskedCardCode}</span></div><p className="my-2 text-xs text-[#888]">Lookup starts automatically 3 seconds after input stops. Six-digit numbers are ignored; after two failed lookups, change the code to retry. The card stays linked by Admin.</p>{lookingUp && <p role="status" className="text-xs text-[#F5C400]">Finding customer…</p>}</Field>}
       {account && <p className="text-xs text-[#F5C400]">Customer found: {account.full_name || account.email}</p>}
       <Field label="Full Name"><input className={inputClass} name="name" required value={name} readOnly={Boolean(account)} disabled={saving} onChange={(event) => setName(event.target.value)} /></Field>
       <Field label="Email"><input className={inputClass} name="email" type="email" required value={email} readOnly={Boolean(account)} disabled={saving} onChange={(event) => setEmail(event.target.value)} /></Field>
