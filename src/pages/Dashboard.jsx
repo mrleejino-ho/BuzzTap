@@ -112,7 +112,7 @@ function Dashboard() {
         ))}
       </div>
 
-      <FinanceSummary summary={finance} loading={dataLoading} title="Business sales audit · all time" />
+      <FinanceSummary summary={finance} loading={dataLoading} title="Sales Summary" />
       <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-3">
         <div className={cardClass}><div className="flex items-center gap-3"><Coins className="text-[#F5C400]" /><div><p className="text-sm text-[#777]">Cash sales captured</p><p className="mt-1 text-2xl font-bold text-white">{formatAmount(todayFinance.cashNet)} cash</p></div></div></div>
         <div className={cardClass}><div className="flex items-center gap-3"><Users className="text-[#F5C400]" /><div><p className="text-sm text-[#777]">Active Customers</p><p className="mt-1 text-2xl font-bold text-white">{customers.filter((item) => item.status === "ACTIVE").length}</p></div></div></div>

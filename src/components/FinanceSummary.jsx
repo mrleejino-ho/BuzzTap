@@ -1,10 +1,9 @@
 import { cardClass } from "./BusinessUI"
 import { formatAmount } from "../lib/businessFinance"
 
-export default function FinanceSummary({ summary, title = "Business sales audit", loading = false }) {
+export default function FinanceSummary({ summary, title = "Sales Summary", loading = false }) {
   return <section className="my-6" aria-label={title}>
     <h2 className="text-lg font-semibold text-white">{title}</h2>
-    <p className="mt-1 text-sm text-[#777]">Cash-only launch view for the current POS rollout.</p>
     <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <div className={cardClass}><p className="text-sm text-[#777]">Cash sales after refunds</p><p className="mt-3 text-2xl font-bold text-emerald-400">{loading ? "..." : formatAmount(summary.cashNet)} cash</p><p className="mt-2 text-xs text-[#AAA]">Sales: {formatAmount(summary.cashSales)} cash · Refunds: {formatAmount(summary.cashRefunds)} cash</p></div>
       <div className={cardClass}><p className="text-sm text-[#777]">Cash refunds</p><p className="mt-3 text-2xl font-bold text-[#F5C400]">{loading ? "..." : formatAmount(summary.cashRefunds)} cash</p><p className="mt-2 text-xs text-[#AAA]">Refunded transactions in the current filter</p></div>

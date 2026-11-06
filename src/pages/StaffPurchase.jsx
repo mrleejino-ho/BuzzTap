@@ -71,7 +71,7 @@ export default function StaffPurchase() {
           {dataError ? `Database error: ${dataError}` : notice || "Loading inventory…"}
         </p>
       )}
-      <FinanceSummary summary={finance} loading={dataLoading} title="Business sales audit · all time" />
+      <FinanceSummary summary={finance} loading={dataLoading} title="Sales Summary" />
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <section className={cardClass}>
           <h2 className="mb-5 text-xl font-semibold text-white">Available stock</h2>
