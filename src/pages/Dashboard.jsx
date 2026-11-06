@@ -18,6 +18,7 @@ function Dashboard() {
     dataError,
   } = useBusiness()
 
+  
   const now = new Date()
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const customerPurchases = financeAudit.filter(
