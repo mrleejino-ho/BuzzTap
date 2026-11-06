@@ -86,7 +86,6 @@ export default function PaymentCustomer({ disabled = false, allowTap = true, lin
         {(mode === "TAP" && allowTap ? customer ? [customer] : [] : eligible).map((item) => <option key={item.id} value={item.id}>{item.name} · {item.customer_code || item.id}</option>)}
       </select>
     </Field>
-    {mode === "TAP" && customer && <p role="status" className="rounded-lg border border-[#F5C400]/30 bg-[#F5C400]/5 p-3 text-sm text-[#F5C400]">{customer.name}<br />Account identified. Send the payment request for customer approval.</p>}
     {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
   </div>
 }
