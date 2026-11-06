@@ -1,11 +1,12 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { nextProductId, catalogCategories } from "./catalog.js"
+import { createProductId, catalogCategories } from "./catalog.js"
 
-test("product IDs advance past existing and deleted IDs and ignore custom codes", () => {
-  assert.equal(nextProductId([]), "PROD-001")
-  assert.equal(nextProductId([{ id: "PROD-001" }, { id: "1234" }, { id: "PROD-009", deleted_at: "2026-10-12" }]), "PROD-010")
-  assert.equal(nextProductId([{ id: "PROD-999" }]), "PROD-1000")
+test("product IDs are globally unique UUID-based catalog IDs", () => {
+  const first = createProductId()
+  const second = createProductId()
+  assert.match(first, /^PROD-[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/)
+  assert.notEqual(first, second)
 })
 
 test("category suggestions trim, deduplicate and sort previous categories", () => {

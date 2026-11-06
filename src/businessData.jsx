@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { supabase } from "./lib/supabaseClient"
 import { BusinessContext } from "./businessContext"
 import { useAuth } from "./context/useAuth"
-import { nextProductId } from "./lib/catalog"
 import { financialAudit, summarizeFinance } from "./lib/businessFinance"
 import PurchaseReceipt from "./components/PurchaseReceipt"
 
@@ -25,7 +24,6 @@ const emptyData = {
   customizedBalances: [],
   rebateLedger: [],
   rebateDataError: null,
-  nextCatalogProductId: "PROD-001",
   workstations: [],
   workstationSessions: [],
   inventoryMovements: [],
@@ -163,7 +161,6 @@ export function BusinessProvider({ children, selectedMembership }) {
         rebateLedger: rebateLedgerResult.data || [],
         rebateDataError: customizedWalletResult.error?.message || rebateLedgerResult.error?.message || null,
         products: (productResult.data || []).filter((item) => !item.deleted_at).map((item) => ({ ...item, price: money(item.price), stock: Number(item.stock || 0) })),
-        nextCatalogProductId: nextProductId(productResult.data || []),
         workstations: (workstationResult.data || []).map((item) => ({ ...item, rate: money(item.rate) })),
         workstationSessions: sessionResult.data || [],
         inventoryMovements: (movementResult.data || []).map((item) => ({
@@ -234,7 +231,30 @@ export function BusinessProvider({ children, selectedMembership }) {
   const update = (table, id, values) => mutate(table, values, { update: true, id })
   const addCustomer = (values) => mutate("customers", { id: values.id?.trim() || idFor("CUS"), name: values.name, email: values.email })
   const updateCustomerStatus = (id, status) => update("customers", id, { status })
-  const addProduct = (values) => mutate("products_services", { id: values.id, name: values.name, description: values.description, category: values.category, price: values.price, item_type: values.item_type, stock: values.item_type === "PRODUCT" ? values.stock : 0 })
+  const addProduct = async (values) => {
+    if (!business?.id) {
+      return { success: false, error: "No active business is available." }
+    }
+
+    const { error } = await supabase.from("products_services").insert({
+      id: values.id,
+      business_id: business.id,
+      name: values.name,
+      description: values.description,
+      category: values.category,
+      price: values.price,
+      item_type: values.item_type,
+      stock: values.item_type === "PRODUCT" ? values.stock : 0,
+    })
+
+    if (error) {
+      setDataError(error.message)
+      return { success: false, error: error.message }
+    }
+
+    await loadData()
+    return { success: true }
+  }
   const updateProductType = (id, item_type) => update("products_services", id, { item_type })
   const updateProductStatus = (id, status) => update("products_services", id, { status })
   const deleteProduct = async (id) => {

@@ -1,9 +1,5 @@
-export function nextProductId(products) {
-  const highest = products.reduce((maximum, product) => {
-    const match = /^PROD-(\d+)$/i.exec(product.id || "")
-    return match ? Math.max(maximum, Number(match[1])) : maximum
-  }, 0)
-  return `PROD-${String(highest + 1).padStart(3, "0")}`
+export function createProductId() {
+  return `PROD-${globalThis.crypto.randomUUID().toUpperCase()}`
 }
 
 export function catalogCategories(products) {

@@ -1,15 +1,16 @@
 import { useState } from "react"
-import { Package, Plus, Search, ToggleLeft, Trash2 } from "lucide-react"
+import { Grid2X2, List, Package, Plus, Search, ToggleLeft, Trash2 } from "lucide-react"
 import { useBusiness } from "../businessContext"
 import PaymentCustomer from "../components/PaymentCustomer"
-import { catalogCategories } from "../lib/catalog"
+import { catalogCategories, createProductId } from "../lib/catalog"
 import { Button, Field, Modal, PageHeader, Status, cardClass, inputClass } from "../components/BusinessUI"
 
 function ProductsServices() {
-  const { products, nextCatalogProductId, checkoutProduct, addProduct, updateProductStatus, updateProductType, deleteProduct, restockInventory, businessRole, dataLoading, dataError } = useBusiness()
+  const { products, checkoutProduct, addProduct, updateProductStatus, updateProductType, deleteProduct, restockInventory, businessRole, dataLoading, dataError } = useBusiness()
   const canManage = ["OWNER", "MANAGER"].includes(businessRole)
   const canPurchase = ["OWNER", "MANAGER", "CASHIER"].includes(businessRole)
   const [query, setQuery] = useState("")
+  const [viewMode, setViewMode] = useState("grid")
   const [modal, setModal] = useState(false)
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState("")
@@ -61,10 +62,10 @@ function ProductsServices() {
     setAdding(true)
     setAddError("")
     try {
-      const ok = await addProduct({ ...data, id: nextCatalogProductId, category: data.category.trim(), item_type: itemType, price: Number(data.price), stock: itemType === "PRODUCT" ? Number(data.stock) : 0 })
-      if (ok) { setNotice("Product added successfully."); setModal(false) }
-      else setAddError("Product save failed. Please try again.")
-    } catch { setAddError("Product save failed. Please try again.") }
+      const result = await addProduct({ ...data, id: createProductId(), category: data.category.trim(), item_type: itemType, price: Number(data.price), stock: itemType === "PRODUCT" ? Number(data.stock) : 0 })
+      if (result.success) { setNotice("Product added successfully."); setModal(false) }
+      else setAddError(result.error || "Product save failed. Please try again.")
+    } catch (error) { setAddError(error.message || "Product save failed. Please try again.") }
     finally { setAdding(false) }
   }
 
@@ -83,36 +84,72 @@ function ProductsServices() {
       <div className={`${cardClass} mb-6 flex items-center gap-3 p-4`}>
         <Search size={17} className="text-[#666]" />
         <input className={`${inputClass} border-0 p-0`} placeholder="Search product, category, or ID" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <div className="ml-auto flex shrink-0 rounded-xl border border-[#292929] bg-[#0A0A0A] p-1" role="group" aria-label="Product display mode">
+          <button
+            type="button"
+            onClick={() => setViewMode("grid")}
+            aria-label="View products as widgets"
+            aria-pressed={viewMode === "grid"}
+            title="Widget view"
+            className={`rounded-lg p-2 transition ${viewMode === "grid" ? "bg-[#F5C400] text-black" : "text-[#888] hover:text-white"}`}
+          >
+            <Grid2X2 size={18} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("list")}
+            aria-label="View products as a list"
+            aria-pressed={viewMode === "list"}
+            title="List view"
+            className={`rounded-lg p-2 transition ${viewMode === "list" ? "bg-[#F5C400] text-black" : "text-[#888] hover:text-white"}`}
+          >
+            <List size={18} />
+          </button>
+        </div>
       </div>
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+      <div className={viewMode === "grid" ? "grid gap-5 md:grid-cols-2 xl:grid-cols-3" : "space-y-3"}>
         {visible.length ? visible.map((product) => (
-          <div className={cardClass} key={product.id}>
-            <div className="flex items-start justify-between">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#F5C400]/10 text-[#F5C400]"><Package size={21} /></div>
+          <div className={viewMode === "grid" ? cardClass : `${cardClass} flex flex-col gap-4 md:flex-row md:items-center md:gap-6`} key={product.id}>
+            <div className={viewMode === "grid" ? "flex items-start justify-between" : "flex min-w-0 items-center gap-4 md:flex-1"}>
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#F5C400]/10 text-[#F5C400]"><Package size={21} /></div>
+              <div className={`min-w-0 ${viewMode === "grid" ? "mt-6" : "flex-1"}`}>
+                <p className="truncate text-xs text-[#666]">{product.id} · {product.category}</p>
+                <h2 className={`mt-1 truncate font-semibold text-white ${viewMode === "grid" ? "text-xl" : "text-base"}`}>{product.name}</h2>
+                <p className="mt-1 line-clamp-2 text-sm text-[#777]">{product.description}</p>
+              </div>
               <Status>{product.status}</Status>
             </div>
-            <p className="mt-6 text-xs text-[#666]">{product.id} · {product.category}</p>
-            <h2 className="mt-2 text-xl font-semibold text-white">{product.name}</h2>
-            <p className="mt-2 text-sm text-[#777]">{product.description}</p>
-            <Field label="Item type"><select disabled={!canManage} className={`${inputClass} mt-2 mb-3`} value={product.item_type || "PRODUCT"} onChange={async (event) => {
+            <div className={viewMode === "grid" ? "" : "md:w-44"}>
+              <Field label="Item type"><select disabled={!canManage} className={`${inputClass} mt-2 mb-3`} value={product.item_type || "PRODUCT"} onChange={async (event) => {
               const ok = await updateProductType(product.id, event.target.value)
               setNotice(ok ? `${product.name} item type updated.` : "Item type update failed.")
-            }}><option value="PRODUCT">Product</option><option value="SERVICE">Service</option><option value="WORKSTATION">From Workstation</option></select></Field>
-            {canPurchase && (product.item_type || "PRODUCT") === "PRODUCT" && product.status === "ACTIVE" && <Button secondary disabled={!product.stock} onClick={() => { setCheckout(product); setPurchaseRequestId(crypto.randomUUID()); setPaymentError("") }}>Customer purchase</Button>}
-            <div className="mt-6 flex items-center justify-between border-t border-[#242424] pt-4">
+              }}><option value="PRODUCT">Product</option><option value="SERVICE">Service</option>{product.item_type === "WORKSTATION" && <option value="WORKSTATION">Workstation item (legacy)</option>}</select></Field>
+            </div>
+            <div className={viewMode === "grid" ? "mt-2 flex items-center justify-between border-t border-[#242424] pt-4" : "flex items-center justify-between gap-4 md:w-48"}>
               <div>
                 <span className="text-xl font-bold text-[#F5C400]">{product.price} cash</span>
                 {(product.item_type || "PRODUCT") === "PRODUCT" && <p className="mt-1 text-xs text-[#777]">{product.stock} in stock</p>}
               </div>
-              <div className="flex items-center gap-2">
+              {viewMode === "grid" && <div className="flex items-center gap-2">
+                {canPurchase && (product.item_type || "PRODUCT") === "PRODUCT" && product.status === "ACTIVE" && <Button secondary disabled={!product.stock} onClick={() => { setCheckout(product); setPurchaseRequestId(crypto.randomUUID()); setPaymentError("") }}>Customer purchase</Button>}
                 {canManage && (product.item_type || "PRODUCT") === "PRODUCT" && <button onClick={() => setRestockProduct(product)} disabled={product.status !== "ACTIVE"} className="rounded-lg bg-[#1d1d1d] px-3 py-2 text-xs text-[#AAA] disabled:opacity-50">Restock</button>}
-                {canManage && <button title="Toggle availability" onClick={async () => {
+                {canManage && <button title="Toggle availability" aria-label={`${product.status === "ACTIVE" ? "Deactivate" : "Activate"} ${product.name}`} onClick={async () => {
+                    const ok = await updateProductStatus(product.id, product.status === "ACTIVE" ? "INACTIVE" : "ACTIVE")
+                    setNotice(ok ? `${product.name} availability updated.` : "Product status update failed.")
+                  }} className="rounded-lg p-2 text-[#777] hover:bg-[#222] hover:text-white"><ToggleLeft size={20} /></button>}
+                {["OWNER", "MANAGER"].includes(businessRole) && <button type="button" title="Delete item" aria-label={`Delete ${product.name}`} onClick={() => { setDeleteItem(product); setDeleteError("") }} className="rounded-lg p-2 text-red-400 hover:bg-red-500/10"><Trash2 size={18} /></button>}
+              </div>
+              }
+            </div>
+            {viewMode === "list" && <div className="flex flex-wrap items-center gap-2 md:justify-end">
+              {canPurchase && (product.item_type || "PRODUCT") === "PRODUCT" && product.status === "ACTIVE" && <Button secondary disabled={!product.stock} onClick={() => { setCheckout(product); setPurchaseRequestId(crypto.randomUUID()); setPaymentError("") }}>Customer purchase</Button>}
+              {canManage && (product.item_type || "PRODUCT") === "PRODUCT" && <button onClick={() => setRestockProduct(product)} disabled={product.status !== "ACTIVE"} className="rounded-lg bg-[#1d1d1d] px-3 py-2 text-xs text-[#AAA] disabled:opacity-50">Restock</button>}
+              {canManage && <button title="Toggle availability" aria-label={`${product.status === "ACTIVE" ? "Deactivate" : "Activate"} ${product.name}`} onClick={async () => {
                   const ok = await updateProductStatus(product.id, product.status === "ACTIVE" ? "INACTIVE" : "ACTIVE")
                   setNotice(ok ? `${product.name} availability updated.` : "Product status update failed.")
                 }} className="rounded-lg p-2 text-[#777] hover:bg-[#222] hover:text-white"><ToggleLeft size={20} /></button>}
-                {["OWNER", "MANAGER"].includes(businessRole) && <button type="button" title="Delete item" aria-label={`Delete ${product.name}`} onClick={() => { setDeleteItem(product); setDeleteError("") }} className="rounded-lg p-2 text-red-400 hover:bg-red-500/10"><Trash2 size={18} /></button>}
-              </div>
-            </div>
+              {["OWNER", "MANAGER"].includes(businessRole) && <button type="button" title="Delete item" aria-label={`Delete ${product.name}`} onClick={() => { setDeleteItem(product); setDeleteError("") }} className="rounded-lg p-2 text-red-400 hover:bg-red-500/10"><Trash2 size={18} /></button>}
+            </div>}
           </div>
         )) : <div className={`${cardClass} text-center text-sm text-[#666]`}>{dataLoading ? "Loading products…" : "No products found."}</div>}
       </div>
@@ -122,8 +159,8 @@ function ProductsServices() {
         <div className="mt-6 flex justify-end gap-3"><Button secondary disabled={deleting} onClick={() => setDeleteItem(null)}>Cancel</Button><Button disabled={deleting} onClick={confirmDelete}>{deleting ? "Deleting…" : "Confirm Delete"}</Button></div>
       </Modal>}
       {modal && <Modal title="Add Catalog Item" onClose={() => { if (!adding) setModal(false) }}><form onSubmit={add} className="space-y-4">
-        <Field label="Item type"><select className={inputClass} value={itemType} onChange={(event) => setItemType(event.target.value)}><option value="PRODUCT">Product</option><option value="SERVICE">Service</option><option value="WORKSTATION">From Workstation</option></select></Field>
-        <Field label="Product ID (automatic)"><input className={inputClass} name="id" readOnly value={dataLoading ? "" : nextCatalogProductId} placeholder="Loading ID..." /></Field>
+        <Field label="Item type"><select className={inputClass} value={itemType} onChange={(event) => setItemType(event.target.value)}><option value="PRODUCT">Product</option><option value="SERVICE">Service</option></select></Field>
+        <p className="text-xs text-[#777]">A unique product ID will be generated automatically.</p>
         <Field label="Product Name"><input className={inputClass} name="name" required placeholder="Gaming Session - 1 Hour" /></Field>
         <Field label="Description"><textarea className={inputClass} name="description" required rows="2" /></Field>
         <Field label="Category"><input className={inputClass} name="category" required placeholder="Choose or enter a category" list="catalog-categories" autoComplete="off" /></Field>
