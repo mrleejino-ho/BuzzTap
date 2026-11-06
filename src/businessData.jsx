@@ -85,21 +85,38 @@ export function BusinessProvider({ children, selectedMembership }) {
     setData(emptyData)
     setWallet(emptyWallet)
     const bid = business.id
+    const hasRole = (...roles) => roles.includes(businessRole)
     try {
       const queries = await Promise.all([
         supabase.from("customers").select("id,business_id,name,email,status,created_at,updated_at,profile_id,customer_code").eq("business_id", bid).order("created_at", { ascending: false }),
         supabase.from("products_services").select("*").eq("business_id", bid).order("created_at", { ascending: false }),
-        supabase.from("workstations").select("*").eq("business_id", bid).order("created_at", { ascending: false }),
+        hasRole("OWNER", "MANAGER")
+          ? supabase.from("workstations").select("*").eq("business_id", bid).order("created_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
         supabase.rpc("get_registered_customer_cards", { p_business_id: bid }),
-        supabase.from("wallet_ledger").select("*").eq("business_id", bid).order("created_at", { ascending: false }),
+        hasRole("OWNER", "MANAGER", "CASHIER")
+          ? supabase.from("wallet_ledger").select("*").eq("business_id", bid).order("created_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
         supabase.from("business_transactions").select("*").eq("business_id", bid).order("created_at", { ascending: false }),
-        supabase.from("business_invitations").select("*").eq("business_id", bid).order("created_at", { ascending: false }),
-        supabase.from("business_access_logs").select("*").eq("business_id", bid).order("occurred_at", { ascending: false }),
+        hasRole("OWNER")
+          ? supabase.from("business_invitations").select("*").eq("business_id", bid).order("created_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
+        hasRole("OWNER")
+          ? supabase.from("business_access_logs").select("*").eq("business_id", bid).order("occurred_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
         supabase.from("profiles").select("id, full_name, email"),
-        supabase.from("purchase_requests").select("*").eq("business_id", bid).order("created_at", { ascending: false }),
-        supabase.from("settlement_requests").select("*").eq("business_id", bid).order("created_at", { ascending: false }),
-        supabase.from("content_items").select("*").eq("business_id", bid).order("created_at", { ascending: false }),
-        supabase.from("workstation_sessions").select("*").eq("business_id", bid).order("started_at", { ascending: false }),
+        hasRole("OWNER", "MANAGER")
+          ? supabase.from("purchase_requests").select("*").eq("business_id", bid).order("created_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
+        hasRole("OWNER", "MANAGER")
+          ? supabase.from("settlement_requests").select("*").eq("business_id", bid).order("created_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
+        hasRole("OWNER", "MANAGER")
+          ? supabase.from("content_items").select("*").eq("business_id", bid).order("created_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
+        hasRole("OWNER", "MANAGER")
+          ? supabase.from("workstation_sessions").select("*").eq("business_id", bid).order("started_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
         supabase.from("product_inventory_movements").select("*").eq("business_id", bid).order("created_at", { ascending: false }),
         supabase.from("business_preferences").select("notifications").eq("business_id", bid).maybeSingle(),
         ["OWNER", "MANAGER", "CASHIER", "STAFF"].includes(businessRole)
@@ -108,7 +125,9 @@ export function BusinessProvider({ children, selectedMembership }) {
         ["OWNER", "MANAGER"].includes(businessRole)
           ? supabase.from("business_customized_bp_wallets").select("*").eq("business_id",bid)
           : Promise.resolve({ data: [], error: null }),
-        supabase.from("business_customized_bp_ledger").select("*").eq("business_id",bid).order("created_at",{ascending:false}),
+        hasRole("OWNER", "MANAGER")
+          ? supabase.from("business_customized_bp_ledger").select("*").eq("business_id",bid).order("created_at",{ascending:false})
+          : Promise.resolve({ data: [], error: null }),
       ])
       const failure = queries.slice(0,16).find((result) => result.error)
       if (failure) {

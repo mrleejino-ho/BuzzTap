@@ -10,7 +10,7 @@ import {
 import { useMemo, useState } from "react"
 import { ArrowLeft, Eye, EyeOff } from "lucide-react"
 
-import { ROLE_PATHS } from "./lib/businessAccess"
+import { ROLE_PATHS, rolesForPage } from "./lib/businessAccess"
 import Sidebar from "./components/Sidebar"
 import BusinessNotifications from "./components/BusinessNotifications"
 import { useAuth } from "./context/useAuth"
@@ -263,19 +263,18 @@ function AppLayout({ selectedMembership, setSelectedMembership }) {
           <Routes>
             <Route
               path="/"
-              element={<Dashboard />}
+              element={
+                <ProtectedRoute allowedRoles={rolesForPage("/")} currentUser={currentUser}>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
             />
 
             <Route
               path="/wallet"
               element={
                 <ProtectedRoute
-                  allowedRoles={[
-                    "OWNER",
-                    "MANAGER",
-                    "CASHIER",
-                    "STAFF",
-                  ]}
+                  allowedRoles={rolesForPage("/wallet")}
                   currentUser={currentUser}
                 >
                   <Wallet />
@@ -287,11 +286,7 @@ function AppLayout({ selectedMembership, setSelectedMembership }) {
               path="/workstations"
               element={
                 <ProtectedRoute
-                  allowedRoles={[
-                    "OWNER",
-                    "MANAGER",
-                    "STAFF",
-                  ]}
+                  allowedRoles={rolesForPage("/workstations")}
                   currentUser={currentUser}
                 >
                   <Workstations />
@@ -303,12 +298,7 @@ function AppLayout({ selectedMembership, setSelectedMembership }) {
               path="/transactions"
               element={
                 <ProtectedRoute
-                  allowedRoles={[
-                    "OWNER",
-                    "MANAGER",
-                    "CASHIER",
-                    "STAFF",
-                  ]}
+                  allowedRoles={rolesForPage("/transactions")}
                   currentUser={currentUser}
                 >
                   <Transactions />
@@ -320,11 +310,7 @@ function AppLayout({ selectedMembership, setSelectedMembership }) {
               path="/customers"
               element={
                 <ProtectedRoute
-                  allowedRoles={[
-                    "OWNER",
-                    "MANAGER",
-                    "CASHIER",
-                  ]}
+                  allowedRoles={rolesForPage("/customers")}
                   currentUser={currentUser}
                 >
                   <Customers />
@@ -336,11 +322,7 @@ function AppLayout({ selectedMembership, setSelectedMembership }) {
               path="/products-services"
               element={
                 <ProtectedRoute
-                  allowedRoles={[
-                    "OWNER",
-                    "MANAGER",
-                    "STAFF",
-                  ]}
+                  allowedRoles={rolesForPage("/products-services")}
                   currentUser={currentUser}
                 >
                   <ProductsServices />
@@ -352,10 +334,7 @@ function AppLayout({ selectedMembership, setSelectedMembership }) {
               path="/reports"
               element={
                 <ProtectedRoute
-                  allowedRoles={[
-                    "OWNER",
-                    "MANAGER",
-                  ]}
+                  allowedRoles={rolesForPage("/reports")}
                   currentUser={currentUser}
                 >
                   <Reports />
@@ -367,7 +346,7 @@ function AppLayout({ selectedMembership, setSelectedMembership }) {
               path="/settings"
               element={
                 <ProtectedRoute
-                  allowedRoles={["OWNER"]}
+                  allowedRoles={rolesForPage("/settings")}
                   currentUser={currentUser}
                 >
                   <Settings changePassword={changePassword} />
@@ -379,7 +358,7 @@ function AppLayout({ selectedMembership, setSelectedMembership }) {
               path="/settings/coming-soon"
               element={
                 <ProtectedRoute
-                  allowedRoles={["OWNER", "MANAGER"]}
+                  allowedRoles={rolesForPage("/settings/coming-soon")}
                   currentUser={currentUser}
                 >
                   <WhatsComingSoon />
@@ -391,11 +370,7 @@ function AppLayout({ selectedMembership, setSelectedMembership }) {
               path="/content"
               element={
                 <ProtectedRoute
-                  allowedRoles={[
-                    "OWNER",
-                    "MANAGER",
-                    "STAFF",
-                  ]}
+                  allowedRoles={rolesForPage("/content")}
                   currentUser={currentUser}
                 >
                   <Content />
@@ -407,20 +382,15 @@ function AppLayout({ selectedMembership, setSelectedMembership }) {
               path="/staff-purchase"
               element={
                 <ProtectedRoute
-                  allowedRoles={[
-                    "OWNER",
-                    "MANAGER",
-                    "CASHIER",
-                    "STAFF",
-                  ]}
+                  allowedRoles={rolesForPage("/staff-purchase")}
                   currentUser={currentUser}
                 >
                   <StaffPurchase />
                 </ProtectedRoute>
               }
             />
-            <Route path="/system-logs" element={<ProtectedRoute allowedRoles={["OWNER", "MANAGER"]} currentUser={currentUser}><SystemLogs /></ProtectedRoute>} />
-            <Route path="/rebates" element={<ProtectedRoute allowedRoles={["OWNER", "MANAGER"]} currentUser={currentUser}><Rebates /></ProtectedRoute>} />
+            <Route path="/system-logs" element={<ProtectedRoute allowedRoles={rolesForPage("/system-logs")} currentUser={currentUser}><SystemLogs /></ProtectedRoute>} />
+            <Route path="/rebates" element={<ProtectedRoute allowedRoles={rolesForPage("/rebates")} currentUser={currentUser}><Rebates /></ProtectedRoute>} />
 
             <Route
               path="*"

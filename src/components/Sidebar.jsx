@@ -11,6 +11,7 @@ import {
   LogOut,
   Megaphone,
   ShoppingCart,
+  BarChart3,
 } from "lucide-react"
 import { canAccessPage } from "../lib/businessAccess"
 import { Modal } from "./BusinessUI"
@@ -40,6 +41,11 @@ function Sidebar({ sidebarOpen, setSidebarOpen, onLogout }) {
       name: "Transactions",
       path: "/transactions",
       icon: Receipt,
+    },
+    {
+      name: "Reports",
+      path: "/reports",
+      icon: BarChart3,
     },
     {
       name: "Content",
