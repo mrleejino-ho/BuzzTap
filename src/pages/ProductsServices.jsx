@@ -18,6 +18,7 @@ function ProductsServices() {
   const [restockProduct, setRestockProduct] = useState(null)
   const [notice, setNotice] = useState("")
   const [checkout, setCheckout] = useState(null)
+  const [purchaseCustomerType, setPurchaseCustomerType] = useState("ACCOUNT")
   const [paying, setPaying] = useState(false)
   const [catalogPaymentMethod, setCatalogPaymentMethod] = useState("CASH")
   const [paymentError, setPaymentError] = useState("")
@@ -43,9 +44,15 @@ function ProductsServices() {
     setPaying(true)
     setPaymentError("")
     try {
-      const details = { customerId: form.get("customerId"), productId: checkout.id, quantity: Number(form.get("quantity")), requestId: purchaseRequestId }
+      const details = {
+        customerId: purchaseCustomerType === "ACCOUNT" ? form.get("customerId") : null,
+        guestName: purchaseCustomerType === "LOCAL" ? String(form.get("guestName") || "").trim() : null,
+        productId: checkout.id,
+        quantity: Number(form.get("quantity")),
+        requestId: purchaseRequestId,
+      }
       const result = await checkoutProduct({ ...details, paymentMethod: "CASH", cashAmount: Number(form.get("cashAmount")) || Number(checkout.price) * Number(form.get("quantity")) })
-      if (result.success) { setCheckout(null); setNotice(`Purchase completed for ${checkout.name}.`) }
+      if (result.success) { setCheckout(null); setNotice(`Purchase completed for ${checkout.name}.`); setPurchaseCustomerType("ACCOUNT") }
       else setPaymentError(result.error)
     } catch { setPaymentError("Payment could not be completed. Retry with the same details.") }
     finally { setPaying(false) }
@@ -126,7 +133,7 @@ function ProductsServices() {
                 {(product.item_type || "PRODUCT") === "PRODUCT" && <p className="mt-1 text-xs text-[#777]">{product.stock} in stock</p>}
               </div>
               {viewMode === "grid" && <div className="flex items-center gap-2">
-                {canPurchase && (product.item_type || "PRODUCT") === "PRODUCT" && product.status === "ACTIVE" && <Button secondary disabled={!product.stock} onClick={() => { setCheckout(product); setPurchaseRequestId(crypto.randomUUID()); setPaymentError("") }}>Customer purchase</Button>}
+                {canPurchase && (product.item_type || "PRODUCT") === "PRODUCT" && product.status === "ACTIVE" && <Button secondary disabled={!product.stock} onClick={() => { setCheckout(product); setPurchaseCustomerType("ACCOUNT"); setPurchaseRequestId(crypto.randomUUID()); setPaymentError("") }}>Customer purchase</Button>}
                 {canManage && (product.item_type || "PRODUCT") === "PRODUCT" && <button onClick={() => setRestockProduct(product)} disabled={product.status !== "ACTIVE"} className="rounded-lg bg-[#1d1d1d] px-3 py-2 text-xs text-[#AAA] disabled:opacity-50">Restock</button>}
                 {canManage && <button title="Toggle availability" aria-label={`${product.status === "ACTIVE" ? "Deactivate" : "Activate"} ${product.name}`} onClick={async () => {
                     const ok = await updateProductStatus(product.id, product.status === "ACTIVE" ? "INACTIVE" : "ACTIVE")
@@ -164,7 +171,10 @@ function ProductsServices() {
       </form></Modal>}
       {checkout && <Modal title={`Purchase · ${checkout.name}`} onClose={() => { if (!paying) setCheckout(null) }}><form onSubmit={pay} className="space-y-4">
         <Field label="Payment method"><select className={inputClass} value={catalogPaymentMethod} disabled={paying} onChange={(event)=>{setCatalogPaymentMethod(event.target.value);setPurchaseRequestId(crypto.randomUUID())}}><option value="CASH">Cash</option></select></Field>
-        <PaymentCustomer key={catalogPaymentMethod} disabled={paying} onChange={() => setPurchaseRequestId(crypto.randomUUID())} />
+        <Field label="Customer type"><select className={inputClass} value={purchaseCustomerType} disabled={paying} onChange={(event) => { setPurchaseCustomerType(event.target.value); setPurchaseRequestId(crypto.randomUUID()) }}><option value="ACCOUNT">Select customer account</option><option value="LOCAL">Local unregistered customer</option></select></Field>
+        {purchaseCustomerType === "ACCOUNT"
+          ? <PaymentCustomer key={catalogPaymentMethod} disabled={paying} onChange={() => setPurchaseRequestId(crypto.randomUUID())} />
+          : <Field label="Local customer name"><input className={inputClass} name="guestName" required maxLength={160} disabled={paying} placeholder="Type customer name" /></Field>}
         <Field label="Quantity"><input className={inputClass} name="quantity" type="number" required min="1" max={checkout.stock} step="1" defaultValue="1" disabled={paying} onChange={() => setPurchaseRequestId(crypto.randomUUID())} /></Field>
         <Field label="Cash received"><input className={inputClass} name="cashAmount" type="number" min={0.01} step="0.01" required disabled={paying} placeholder="Enter amount paid by customer" /></Field>
         <p className="text-sm text-[#AAA]">{checkout.price} cash per unit. Launch payment flow is cash-only.</p>
