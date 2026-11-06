@@ -6,7 +6,7 @@ import { createProductId } from "../lib/catalog"
 import { Button, Field, Modal, PageHeader, Status, cardClass, inputClass } from "../components/BusinessUI"
 
 function ProductsServices() {
-  const { products, checkoutProduct, addProduct, updateProductStatus, updateProductType, deleteProduct, restockInventory, businessRole, dataLoading, dataError } = useBusiness()
+  const { products, inventoryMovements, checkoutProduct, addProduct, updateProductStatus, deleteProduct, restockInventory, businessRole, dataLoading, dataError } = useBusiness()
   const canManage = ["OWNER", "MANAGER"].includes(businessRole)
   const canPurchase = ["OWNER", "MANAGER", "CASHIER"].includes(businessRole)
   const [query, setQuery] = useState("")
@@ -53,6 +53,7 @@ function ProductsServices() {
   const visible = products.filter((item) =>
     `${item.id} ${item.name} ${item.category}`.toLowerCase().includes(query.toLowerCase()),
   )
+  const displayedProducts = visible.slice(0, 20)
 
   const add = async (event) => {
     event.preventDefault()
@@ -106,8 +107,9 @@ function ProductsServices() {
           </button>
         </div>
       </div>
+      {visible.length > displayedProducts.length && <p className="mb-3 text-xs text-[#777]">Showing the first {displayedProducts.length} of {visible.length} matching items.</p>}
       <div className={viewMode === "grid" ? "grid gap-5 md:grid-cols-2 xl:grid-cols-3" : "space-y-3"}>
-        {visible.length ? visible.map((product) => (
+        {displayedProducts.length ? displayedProducts.map((product) => (
           <div className={viewMode === "grid" ? cardClass : `${cardClass} flex flex-col gap-4 md:flex-row md:items-center md:gap-6`} key={product.id}>
             <div className={viewMode === "grid" ? "flex items-start justify-between" : "flex min-w-0 items-center gap-4 md:flex-1"}>
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#F5C400]/10 text-[#F5C400]"><Package size={21} /></div>
@@ -117,12 +119,6 @@ function ProductsServices() {
                 <p className="mt-1 line-clamp-2 text-sm text-[#777]">{product.description}</p>
               </div>
               <Status>{product.status}</Status>
-            </div>
-            <div className={viewMode === "grid" ? "" : "md:w-44"}>
-              <Field label="Item type"><select disabled={!canManage} className={`${inputClass} mt-2 mb-3`} value={product.item_type || "PRODUCT"} onChange={async (event) => {
-              const ok = await updateProductType(product.id, event.target.value)
-              setNotice(ok ? `${product.name} item type updated.` : "Item type update failed.")
-              }}><option value="PRODUCT">Product</option><option value="SERVICE">Service</option>{product.item_type === "WORKSTATION" && <option value="WORKSTATION">Workstation item (legacy)</option>}</select></Field>
             </div>
             <div className={viewMode === "grid" ? "mt-2 flex items-center justify-between border-t border-[#242424] pt-4" : "flex items-center justify-between gap-4 md:w-48"}>
               <div>
@@ -180,6 +176,25 @@ function ProductsServices() {
         <Field label="Quantity to add"><input className={inputClass} name="quantity" type="number" min="1" step="1" required autoFocus /></Field>
         <Button type="submit"><Plus size={17} />Record restock</Button>
       </form></Modal>}
+      <section className={`${cardClass} mt-8`}>
+        <h2 className="text-lg font-semibold text-white">Recent stock movements</h2>
+        {inventoryMovements.length ? (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[600px] text-left text-sm">
+              <thead className="border-b border-[#242424] text-xs uppercase text-[#666]"><tr><th className="px-3 py-3">Product</th><th className="px-3 py-3">Movement</th><th className="px-3 py-3">Quantity</th><th className="px-3 py-3">Operator</th><th className="px-3 py-3">Date</th></tr></thead>
+              <tbody>{inventoryMovements.slice(0, 20).map((item) => (
+                <tr className="border-b border-[#1d1d1d] last:border-0" key={item.id}>
+                  <td className="px-3 py-3 text-white">{item.productName}</td>
+                  <td className="px-3 py-3 text-[#AAA]">{item.movement_type}</td>
+                  <td className="px-3 py-3 text-white">{item.movement_type === "ISSUE" ? "-" : "+"}{item.quantity}</td>
+                  <td className="px-3 py-3 text-[#AAA]">{item.operatorName}</td>
+                  <td className="px-3 py-3 text-[#777]">{new Date(item.created_at).toLocaleString()}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        ) : <p className="mt-3 text-sm text-[#777]">No stock movements recorded yet.</p>}
+      </section>
     </div>
   )
 }

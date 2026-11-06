@@ -7,7 +7,7 @@ import FinanceSummary from "../components/FinanceSummary"
 import { Button, Field, Modal, PageHeader, Status, cardClass, inputClass } from "../components/BusinessUI"
 
 export default function StaffPurchase() {
-  const { products, finance, inventoryMovements, checkoutProduct, dataLoading, dataError } = useBusiness()
+  const { products, finance, checkoutProduct, dataLoading, dataError } = useBusiness()
   const [selected, setSelected] = useState("")
   const [quantity, setQuantity] = useState(1)
   const [notice, setNotice] = useState("")
@@ -132,25 +132,6 @@ export default function StaffPurchase() {
         <div className="flex gap-3"><Button secondary disabled={submitting} onClick={() => setCheckout(null)}>Cancel</Button><Button type="submit" disabled={submitting}>{submitting ? "Processing…" : "Confirm Purchase"}</Button></div>
       </form></Modal>}
       <CustomerPaymentRequests kind="PRODUCT" />
-      <section className={`${cardClass} mt-6`}>
-        <h2 className="text-lg font-semibold text-white">Recent stock movements</h2>
-        {inventoryMovements.length ? (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[600px] text-left text-sm">
-              <thead className="border-b border-[#242424] text-xs uppercase text-[#666]"><tr><th className="px-3 py-3">Product</th><th className="px-3 py-3">Movement</th><th className="px-3 py-3">Quantity</th><th className="px-3 py-3">Operator</th><th className="px-3 py-3">Date</th></tr></thead>
-              <tbody>{inventoryMovements.slice(0, 10).map((item) => (
-                <tr className="border-b border-[#1d1d1d] last:border-0" key={item.id}>
-                  <td className="px-3 py-3 text-white">{item.productName}</td>
-                  <td className="px-3 py-3 text-[#AAA]">{item.movement_type}</td>
-                  <td className="px-3 py-3 text-white">{item.movement_type === "ISSUE" ? "-" : "+"}{item.quantity}</td>
-                  <td className="px-3 py-3 text-[#AAA]">{item.operatorName}</td>
-                  <td className="px-3 py-3 text-[#777]">{new Date(item.created_at).toLocaleString()}</td>
-                </tr>
-              ))}</tbody>
-            </table>
-          </div>
-        ) : <p className="mt-3 text-sm text-[#777]">No stock issues recorded yet.</p>}
-      </section>
     </div>
   )
 }
