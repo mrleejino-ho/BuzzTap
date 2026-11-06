@@ -14,7 +14,6 @@ export default function StaffPurchase() {
   const [submitting, setSubmitting] = useState(false)
   const [checkout, setCheckout] = useState(null)
   const [customerType, setCustomerType] = useState("ACCOUNT")
-  const [paymentMethod, setPaymentMethod] = useState("CASH")
   const [checkoutError, setCheckoutError] = useState("")
   const [cashReceived, setCashReceived] = useState("")
   const [requestId, setRequestId] = useState(() => crypto.randomUUID())
@@ -36,7 +35,6 @@ export default function StaffPurchase() {
     setCashReceived("")
     setCheckout({ ...selectedProduct, quantity })
     setCustomerType("ACCOUNT")
-    setPaymentMethod("CASH")
     setCheckoutError("")
     changeRequest()
   }
@@ -51,9 +49,13 @@ export default function StaffPurchase() {
       const result = await checkoutProduct({ productId: checkout.id, quantity: checkout.quantity,
         customerId: customerType === "ACCOUNT" ? form.get("customerId") : null,
         guestName: customerType === "LOCAL" ? form.get("guestName").trim() : null,
-        paymentMethod, cashAmount: paymentMethod === "CASH" ? Number(form.get("cashAmount")) : null, requestId })
+        paymentMethod: "CASH",
+        cashAmount: Number(form.get("cashAmount")),
+        requestId })
       if (result.success) {
-        setNotice(result.pendingApproval ? "Payment request sent. Ask the customer to review it in the BuzzTap app, then complete it under Customer payment approvals." : paymentMethod === "CASH" && result.receipt ? `Sale: ${result.receipt.amount} cash. Received: ${result.receipt.metadata.cash_received} cash. Change: ${result.receipt.metadata.change_due} cash.` : "Purchase completed.")
+        setNotice(result.receipt
+          ? `Sale: ${result.receipt.amount} cash. Received: ${result.receipt.metadata.cash_received} cash. Change: ${result.receipt.metadata.change_due} cash.`
+          : "Purchase completed.")
         setCheckout(null)
         setQuantity(1)
       } else setCheckoutError(result.error)
@@ -124,10 +126,11 @@ export default function StaffPurchase() {
 
       {checkout && <Modal title={`Purchase · ${checkout.name}`} onClose={() => { if (!submitting) setCheckout(null) }}><form onSubmit={pay} className="space-y-4" onChange={changeRequest}>
         <p className="text-sm text-[#AAA]">{checkout.quantity} units · {checkout.price * checkout.quantity} cash</p>
-        <Field label="Customer type"><select className={inputClass} value={customerType} disabled={submitting} onChange={(event) => { setCustomerType(event.target.value); setPaymentMethod("CASH") }}><option value="ACCOUNT">BuzzTap account customer</option><option value="LOCAL">Local customer (no BuzzTap account)</option></select></Field>
-        {customerType === "ACCOUNT" ? <PaymentCustomer key={paymentMethod} allowTap={false} disabled={submitting} onChange={changeRequest} /> : <Field label="Customer name"><input className={inputClass} name="guestName" required maxLength={160} disabled={submitting} placeholder="Local customer name" /></Field>}
+        <Field label="Customer type"><select className={inputClass} value={customerType} disabled={submitting} onChange={(event) => setCustomerType(event.target.value)}><option value="ACCOUNT">Select customer account</option><option value="LOCAL">Local unregistered customer</option></select></Field>
+        {customerType === "ACCOUNT"
+          ? <PaymentCustomer disabled={submitting} onChange={changeRequest} />
+          : <Field label="Local customer name"><input className={inputClass} name="guestName" required maxLength={160} disabled={submitting} placeholder="Type customer name" /></Field>}
         <div className="space-y-3"><p className="text-sm font-semibold text-[#F5C400]">Total due: {(checkout.price * checkout.quantity).toLocaleString()} cash</p><Field label="Cash received"><input className={inputClass} name="cashAmount" type="number" min={Math.max(0.01, checkout.price * checkout.quantity)} step="0.01" required disabled={submitting} value={cashReceived} onChange={(event) => setCashReceived(event.target.value)} placeholder="Amount handed by customer" /></Field><p className="text-sm text-[#AAA]">Change due: {Math.max(0, Math.round((Number(cashReceived || 0) - checkout.price * checkout.quantity) * 100) / 100).toLocaleString()} cash</p></div>
-        {customerType === "LOCAL" && <p className="text-xs text-[#AAA]">Local customers pay in cash only for the launch POS version.</p>}
         {checkoutError && <p role="alert" className="text-sm text-red-300">{checkoutError}</p>}
         <div className="flex gap-3"><Button secondary disabled={submitting} onClick={() => setCheckout(null)}>Cancel</Button><Button type="submit" disabled={submitting}>{submitting ? "Processing…" : "Confirm Purchase"}</Button></div>
       </form></Modal>}
