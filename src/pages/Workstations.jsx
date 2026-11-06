@@ -27,7 +27,6 @@ function Workstations() {
   const [endStation, setEndStation] = useState(null)
   const [endError, setEndError] = useState("")
   const [customerType, setCustomerType] = useState("REGISTERED")
-  const [paymentMethod, setPaymentMethod] = useState("CASH")
   const [sessionError, setSessionError] = useState("")
   const [requestId, setRequestId] = useState(() => crypto.randomUUID())
   const [now, setNow] = useState(() => Date.now())
@@ -50,7 +49,9 @@ function Workstations() {
       const result = await changeWorkstationSession(sessionStation.id, "START", {
         customerId: customerType === "REGISTERED" ? data.customerId : null,
         guestName: customerType === "GUEST" ? data.guestName.trim() : null,
-        paymentMethod, amount: Number(data.amount), requestId,
+        paymentMethod: "CASH",
+        amount: Number(data.amount),
+        requestId,
       })
       if (result.success) {
         setNotice(result.pendingApproval ? "Payment request sent. After the customer approves in the BuzzTap app, complete payment below to start the session." : `Session started for ${sessionStation.name}.`)
@@ -116,7 +117,7 @@ function Workstations() {
               <p className="mt-6 text-xs text-[#666]">{item.workstation_code || item.id} · {item.type}</p>
               <h2 className="mt-2 text-xl font-semibold text-white">{item.name}</h2>
               <p className="mt-2 text-sm text-[#777]">{item.location} · {item.device}</p>
-              <p className="mt-4 font-semibold text-[#F5C400]">{item.rate} cash/hour · {item.rate} BP or CBP/hour</p>
+              <p className="mt-4 font-semibold text-[#F5C400]">{item.rate} cash/hour</p>
               {item.status === "IN_USE" && <div className="mt-4 rounded-xl border border-[#F5C400]/20 bg-[#F5C400]/5 p-3">
                 <p className="text-xs text-[#AAA]">Customer</p>
                 <p className="mt-1 font-semibold text-white">{sessionCustomerName(activeSession, customers)}</p>
@@ -125,7 +126,7 @@ function Workstations() {
                 {activeSession && <p className="mt-2 text-xs text-[#AAA]">Started {new Date(activeSession.started_at).toLocaleString()}</p>}
               </div>}
               {canManage && <div className="mt-5 flex flex-wrap gap-2 border-t border-[#242424] pt-4">
-                {item.status === "ACTIVE" && <button disabled={busyId === item.id} onClick={() => { setRequestId(crypto.randomUUID()); setSessionStation(item); setCustomerType("REGISTERED"); setPaymentMethod("CASH"); setSessionError("") }} className="rounded-lg bg-[#F5C400] px-3 py-2 text-xs font-semibold text-black disabled:opacity-50"><Clock3 size={14} className="mr-1 inline" />Start Session</button>}
+                {item.status === "ACTIVE" && <button disabled={busyId === item.id} onClick={() => { setRequestId(crypto.randomUUID()); setSessionStation(item); setCustomerType("REGISTERED"); setSessionError("") }} className="rounded-lg bg-[#F5C400] px-3 py-2 text-xs font-semibold text-black disabled:opacity-50"><Clock3 size={14} className="mr-1 inline" />Start Session</button>}
                 {item.status === "IN_USE" && <button disabled={Boolean(busyId) || !activeSession} onClick={() => { setEndStation(item); setEndError("") }} className="rounded-lg bg-[#F5C400] px-3 py-2 text-xs font-semibold text-black disabled:opacity-50">End Session</button>}
                 {item.status !== "IN_USE" && item.status !== "DISABLED" && item.status !== "MAINTENANCE" && <button onClick={() => change(item, "MAINTENANCE")} title="Set maintenance" className="rounded-lg bg-[#1d1d1d] p-2 text-[#AAA]"><Wrench size={15} /></button>}
                 {item.status === "DISABLED" || item.status === "MAINTENANCE"
@@ -138,14 +139,12 @@ function Workstations() {
       </div>
       <CustomerPaymentRequests kind="WORKSTATION" />
       {sessionStation && <Modal title={`Start Session · ${sessionStation.name}`} onClose={() => { if (!busyId) setSessionStation(null) }}><form onSubmit={startSession} className="space-y-4">
-        <Field label="Payment method"><select className={inputClass} value={paymentMethod} disabled={Boolean(busyId)} onChange={(event) => { setPaymentMethod(event.target.value); setRequestId(crypto.randomUUID()) }}><option value="CASH">Cash</option>{customerType === "REGISTERED" && <><option value="BUZZPOINTS">BuzzPoints (shared BP)</option><option value="CUSTOMIZED">Customized BuzzPoints (this business)</option></>}</select></Field>
-        <Field label="User Account"><select className={inputClass} value={customerType} disabled={Boolean(busyId)} onChange={(event) => { setRequestId(crypto.randomUUID()); setCustomerType(event.target.value); setPaymentMethod("CASH") }}><option value="REGISTERED">Registered customer</option><option value="GUEST">Non-registered customer</option></select></Field>
-        {customerType === "REGISTERED" ? <PaymentCustomer key={paymentMethod} allowTap={paymentMethod !== "CASH"} linkedOnly={paymentMethod !== "CASH"} disabled={Boolean(busyId)} onChange={() => setRequestId(crypto.randomUUID())} /> : <Field label="Guest name"><input className={inputClass} name="guestName" onChange={() => setRequestId(crypto.randomUUID())} required maxLength={160} disabled={Boolean(busyId)} placeholder="Customer name" /></Field>}
-        {customerType === "GUEST" && <p className="text-xs text-[#AAA]">BuzzPoints payments require a registered customer wallet.</p>}
-        <p className="text-xs text-[#AAA]">Session time is calculated automatically from the amount paid at {sessionStation.rate} {paymentMethod === "CASH" ? "cash" : paymentMethod === "CUSTOMIZED" ? "CBP" : "BP"}/hour.</p>
-        <Field label={`Amount purchased (${paymentMethod === "CASH" ? "cash" : paymentMethod === "CUSTOMIZED" ? "CBP" : "BP"})`}><input className={inputClass} name="amount" required type="number" min={paymentMethod !== "CASH" ? "1" : "0.01"} step={paymentMethod !== "CASH" ? "1" : "0.01"} onChange={() => setRequestId(crypto.randomUUID())} disabled={Boolean(busyId)} placeholder="Enter amount" /></Field>
+        <Field label="User Account"><select className={inputClass} value={customerType} disabled={Boolean(busyId)} onChange={(event) => { setRequestId(crypto.randomUUID()); setCustomerType(event.target.value) }}><option value="REGISTERED">Registered customer</option><option value="GUEST">Non-registered customer</option></select></Field>
+        {customerType === "REGISTERED" ? <PaymentCustomer key={customerType} allowTap={false} linkedOnly={false} disabled={Boolean(busyId)} onChange={() => setRequestId(crypto.randomUUID())} /> : <Field label="Guest name"><input className={inputClass} name="guestName" onChange={() => setRequestId(crypto.randomUUID())} required maxLength={160} disabled={Boolean(busyId)} placeholder="Customer name" /></Field>}
+        <p className="text-xs text-[#AAA]">Session time is calculated automatically from the cash amount paid at {sessionStation.rate} cash/hour.</p>
+        <Field label="Amount purchased (cash)"><input className={inputClass} name="amount" required type="number" min="0.01" step="0.01" onChange={() => setRequestId(crypto.randomUUID())} disabled={Boolean(busyId)} placeholder="Enter amount" /></Field>
         {sessionError && <p role="alert" className="text-sm text-red-300">{sessionError}</p>}
-        <Button type="submit" disabled={Boolean(busyId)}>{busyId ? "Processing…" : paymentMethod === "CASH" ? "Confirm and Start Session" : "Request customer approval"}</Button>
+        <Button type="submit" disabled={Boolean(busyId)}>{busyId ? "Processing…" : "Confirm and Start Session"}</Button>
       </form></Modal>}
       {endStation && <Modal title={`End Session · ${endStation.name}`} onClose={() => { if (!busyId) setEndStation(null) }}>
         <div role="alertdialog" aria-modal="true" aria-label={`End session for ${endStation.name}`} aria-describedby="end-session-description" className="space-y-4">
@@ -162,7 +161,7 @@ function Workstations() {
         <Field label="Name"><input className={inputClass} name="name" required placeholder="Gaming Station 09" /></Field>
         <Field label="Type"><input className={inputClass} name="type" required placeholder="Gaming PC" /></Field>
         <Field label="Location"><input className={inputClass} name="location" required placeholder="Station Area" /></Field>
-        <Field label="Hourly Rate (cash or BP)"><input className={inputClass} name="rate" type="number" min="0.01" step="0.01" required placeholder="50" /></Field>
+        <Field label="Hourly Rate (cash)"><input className={inputClass} name="rate" type="number" min="0.01" step="0.01" required placeholder="50" /></Field>
         <Field label="Device"><input className={inputClass} name="device" required placeholder="Station Controller #009" /></Field>
         <Button type="submit">Add Workstation</Button>
       </form></Modal>}

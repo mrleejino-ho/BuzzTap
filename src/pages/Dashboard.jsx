@@ -8,7 +8,6 @@ import { isCompleted as completed, isSale, summarizeFinance, formatAmount } from
 
 function Dashboard() {
   const {
-    wallet,
     customers,
     transactions,
     financeAudit,
@@ -34,15 +33,13 @@ function Dashboard() {
       key: `${month.getFullYear()}-${month.getMonth()}`,
       label: month.toLocaleDateString(undefined, { month: "short" }),
       cash: 0,
-      bp: 0,
-      cbp: 0,
     }
   })
   const bucketMap = new Map(monthlyVolumes.map((bucket) => [bucket.key, bucket]))
   customerPurchases.forEach((item) => {
     const date = new Date(item.created_at)
     const bucket = bucketMap.get(`${date.getFullYear()}-${date.getMonth()}`)
-    if (bucket) bucket[item.paymentMethod === "CASH" ? "cash" : item.paymentMethod === "CUSTOMIZED" ? "cbp" : "bp"] += Number(item.amount || 0)
+    if (bucket && item.paymentMethod === "CASH") bucket.cash += Number(item.amount || 0)
   })
   const recentActivity = financeAudit
       .filter(completed)
@@ -64,19 +61,19 @@ function Dashboard() {
       description: "Cash sales less cash refunds",
     },
     {
-      label: "Today's BuzzPoints Sales",
-      value: `${formatAmount(todayFinance.bpNet)} BP`,
-      description: `${todaysPurchases.length} completed sales across all payment methods`,
+      label: "Today's Completed Sales",
+      value: String(todaysPurchases.length),
+      description: "Cash transactions completed today",
     },
     {
-      label: "Today's Customized BP Redemptions",
-      value: `${formatAmount(todayFinance.cbpNet)} CBP`,
-      description: "Business-only rewards redeemed less CBP refunds",
+      label: "Today's Refunds",
+      value: `${formatAmount(todayFinance.cashRefunds)} cash`,
+      description: "Cash refunds processed today",
     },
     {
       label: "Today's Completed Transactions",
       value: String(transactions.filter((item) => completed(item) && new Date(item.created_at) >= todayStart).length),
-      description: "All transaction types",
+      description: "All completed entries in the active ledger",
     },
     {
       label: "Active NFC Cards",
@@ -87,11 +84,6 @@ function Dashboard() {
       label: "Available Workstations",
       value: String(workstations.filter((item) => item.status === "ACTIVE").length),
       description: "Ready for a session",
-    },
-    {
-      label: "Available BuzzPoints",
-      value: `${wallet.balance.toLocaleString()} BP`,
-      description: "Current shared business wallet balance",
     },
   ]
 
@@ -121,16 +113,16 @@ function Dashboard() {
 
       <FinanceSummary summary={finance} loading={dataLoading} title="Business sales audit · all time" />
       <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-3">
-        <div className={cardClass}><div className="flex items-center gap-3"><Coins className="text-[#F5C400]" /><div><p className="text-sm text-[#777]">BuzzPoints Collected</p><p className="mt-1 text-2xl font-bold text-white">{wallet.collected.toLocaleString()} BP</p></div></div></div>
+        <div className={cardClass}><div className="flex items-center gap-3"><Coins className="text-[#F5C400]" /><div><p className="text-sm text-[#777]">Cash sales captured</p><p className="mt-1 text-2xl font-bold text-white">{formatAmount(todayFinance.cashNet)} cash</p></div></div></div>
         <div className={cardClass}><div className="flex items-center gap-3"><Users className="text-[#F5C400]" /><div><p className="text-sm text-[#777]">Active Customers</p><p className="mt-1 text-2xl font-bold text-white">{customers.filter((item) => item.status === "ACTIVE").length}</p></div></div></div>
-        <div className={cardClass}><div className="flex items-center gap-3"><WalletCards className="text-[#F5C400]" /><div><p className="text-sm text-[#777]">Pending Settlement</p><p className="mt-1 text-2xl font-bold text-white">{wallet.pendingSettlement.toLocaleString()} BP</p></div></div></div>
+        <div className={cardClass}><div className="flex items-center gap-3"><WalletCards className="text-[#F5C400]" /><div><p className="text-sm text-[#777]">Cash refunds</p><p className="mt-1 text-2xl font-bold text-white">{formatAmount(todayFinance.cashRefunds)} cash</p></div></div></div>
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
         <section className={`${cardClass} min-h-[320px] xl:col-span-2`}>
-          <h2 className="text-lg font-semibold text-white">Cash, BP and CBP activity by month</h2>
-          <p className="mt-1 text-sm text-[#666]">Gross sales shown in their original payment units</p>
-          <SalesChart buckets={monthlyVolumes} label="Monthly cash and BuzzPoints sales" />
+          <h2 className="text-lg font-semibold text-white">Cash activity by month</h2>
+          <p className="mt-1 text-sm text-[#666]">Gross cash sales for the current launch setup</p>
+          <SalesChart buckets={monthlyVolumes} label="Monthly cash sales" />
         </section>
 
         <section className={cardClass}>

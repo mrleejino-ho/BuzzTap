@@ -1,15 +1,24 @@
 import {
   Bell,
+  Banknote,
   Building2,
+  Check,
+  CircleAlert,
+  ClipboardCheck,
+  Database,
   Eye,
   EyeOff,
   LockKeyhole,
+  PackageCheck,
   Plus,
+  ReceiptText,
   Save,
   Search,
+  ShieldCheck,
   Trash2,
   UserCog,
 } from "lucide-react"
+import { Link } from "react-router-dom"
 import { useState } from "react"
 
 import { useBusiness } from "../businessContext"
@@ -31,10 +40,147 @@ const requirementList = [
   ["One special character", (value) => /[^A-Za-z0-9]/.test(value)],
 ]
 
+const launchChecklist = [
+  {
+    id: "production-config",
+    title: "Production configuration is ready",
+    details: "Confirm the production URL, HTTPS, and required Vercel environment variables are set in the hosting dashboard. Never deploy a local .env file.",
+    icon: ShieldCheck,
+  },
+  {
+    id: "auth-roles",
+    title: "Sign-in and staff permissions are verified",
+    details: "Test owner, manager, cashier, and staff access in production; confirm each role only sees and can use its permitted pages.",
+    icon: UserCog,
+  },
+  {
+    id: "cash-sale",
+    title: "A real cash sale completes correctly",
+    details: "Run a small test sale, check the amount due, cash received, change, receipt, transaction status, and inventory decrement.",
+    icon: Banknote,
+  },
+  {
+    id: "refund",
+    title: "Refund behavior is verified",
+    details: "Test a cash refund and confirm the ledger, inventory policy, receipt/history, and customer-facing records are correct.",
+    icon: ReceiptText,
+  },
+  {
+    id: "catalog",
+    title: "Catalog and stock workflows are checked",
+    details: "Verify product prices, stock counts, out-of-stock behavior, restocking, and any services you intend to sell.",
+    icon: PackageCheck,
+  },
+  {
+    id: "supabase",
+    title: "Production database access is secure",
+    details: "Confirm production migrations are applied, Row Level Security policies are enabled, and business data is isolated between accounts.",
+    icon: Database,
+  },
+  {
+    id: "cash-only",
+    title: "Cash-only launch scope is enforced",
+    details: "Verify the live cashier flow has no wallet or rewards payment option, and that hidden roadmap pages cannot be opened by non-authorized roles.",
+    icon: ClipboardCheck,
+  },
+  {
+    id: "recovery",
+    title: "Recovery and support are planned",
+    details: "Know how to restore a database backup, contact the system administrator, and report a failed or duplicate transaction.",
+    icon: CircleAlert,
+  },
+]
+
 function Settings({ changePassword }) {
   const businessData = useBusiness()
   const settingsKey = `${businessData.business?.id || ""}:${businessData.dataLoading ? "loading" : JSON.stringify(businessData.notificationPreferences)}`
   return <SettingsPanel key={settingsKey} changePassword={changePassword} {...businessData} />
+}
+
+function LaunchChecklist({ businessId }) {
+  const storageKey = `buzztap-launch-checklist:${businessId || "unassigned"}`
+  const [savedState, setSavedState] = useState(() => {
+    try {
+      const saved = window.localStorage.getItem(storageKey)
+      const checks = saved ? JSON.parse(saved) : {}
+      if (!checks || typeof checks !== "object" || Array.isArray(checks)) {
+        throw new Error("Saved checklist data is invalid.")
+      }
+      return { checks, error: "" }
+    } catch (error) {
+      return {
+        checks: {},
+        error: error instanceof SyntaxError
+          ? "Saved launch checklist data could not be read. The checklist has been reset."
+          : error.message || "Launch checklist progress could not be loaded.",
+      }
+    }
+  })
+
+  const verifiedChecks = launchChecklist.filter((item) => savedState.checks[item.id]).length
+  const launchReady = verifiedChecks === launchChecklist.length
+
+  const updateCheck = (id, checked) => {
+    const checks = { ...savedState.checks, [id]: checked }
+    setSavedState({ checks, error: "" })
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(checks))
+    } catch {
+      setSavedState({ checks, error: "Checklist progress could not be saved in this browser. Keep a separate record of completed checks." })
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-[#242424] bg-[#111] p-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-medium text-[#F5C400]">STORE OPENING GATE</p>
+          <h3 className="mt-2 text-xl font-semibold text-white">Cash-only POS Go / No-Go</h3>
+          <p className="mt-1 text-sm text-[#888]">Complete each item only after you have verified it in the production environment.</p>
+        </div>
+        <div
+          role="status"
+          aria-live="polite"
+          className={`flex items-center gap-2 self-start rounded-xl border px-4 py-3 text-sm font-bold sm:self-auto ${
+            launchReady
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+              : "border-red-500/30 bg-red-500/10 text-red-300"
+          }`}
+        >
+          {launchReady ? <Check size={18} /> : <CircleAlert size={18} />}
+          {launchReady ? "GO TO PILOT" : "NO-GO"}
+        </div>
+      </div>
+
+      <p className="mt-4 text-xs text-[#777]">
+        {verifiedChecks} of {launchChecklist.length} checks verified. This is a manual release checklist; it does not replace deployment, database, or operational testing.
+      </p>
+
+      {savedState.error && (
+        <p role="alert" className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
+          {savedState.error}
+        </p>
+      )}
+
+      <div className="mt-5 space-y-3">
+        {launchChecklist.map(({ id, title, details, icon: Icon }) => (
+          <label key={id} className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#242424] bg-[#0d0d0d] p-4 transition hover:border-[#F5C400]/40">
+            <input
+              type="checkbox"
+              checked={Boolean(savedState.checks[id])}
+              onChange={(event) => updateCheck(id, event.target.checked)}
+              className="mt-1 h-4 w-4 shrink-0 accent-[#F5C400]"
+            />
+            <Icon size={18} className="mt-0.5 shrink-0 text-[#F5C400]" />
+            <span>
+              <span className="block text-sm font-semibold text-white">{title}</span>
+              <span className="mt-1 block text-xs leading-5 text-[#888]">{details}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function SettingsPanel({
@@ -75,7 +221,6 @@ function SettingsPanel({
     next: false,
     confirm: false,
   })
-
   const saveSettings = async () => {
     if (!businessForm.name.trim() || !businessForm.phone.trim() || !businessForm.address.trim()) {
       setNotice("Business name, phone, and address are required.")
@@ -254,13 +399,56 @@ function SettingsPanel({
         }
       />
 
-      {(notice || dataError) && (
-        <p role={dataError ? "alert" : "status"} className={`mb-5 rounded-xl border p-3 text-sm ${dataError ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-[#F5C400]/30 bg-[#F5C400]/10 text-[#F5C400]"}`}>
-          {dataError ? `Database error: ${dataError}` : notice}
-        </p>
+     <div className="mb-6 space-y-5">
+       <div className="rounded-2xl border border-[#F5C400]/25 bg-[#111] p-5 shadow-[8px_8px_25px_rgba(0,0,0,0.3)]">
+         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+           <div>
+             <p className="text-sm font-medium text-[#F5C400]">LAUNCH ROADMAP</p>
+             <h2 className="mt-2 text-xl font-semibold text-white">What’s Coming Soon</h2>
+             <p className="mt-2 text-sm text-[#AAA]">
+               The launch will stay cash-first. Future loyalty and subscription features remain in the roadmap and are intentionally hidden from the live POS screens.
+             </p>
+           </div>
+
+           <Link to="/settings/coming-soon">
+             <button className="rounded-xl border border-[#333] bg-[#191919] px-4 py-3 text-sm font-semibold text-white transition-all hover:border-[#F5C400]/50 hover:-translate-y-0.5">
+               View roadmap
+             </button>
+           </Link>
+         </div>
+       </div>
+
+       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+         {[
+           { label: "Workstations", status: "Planned", accent: "bg-[#F5C400]/10 text-[#F5C400]" },
+           { label: "BuzzPoints wallet", status: "Planned", accent: "bg-[#F5C400]/10 text-[#F5C400]" },
+           { label: "Customized BP rewards", status: "Planned", accent: "bg-[#F5C400]/10 text-[#F5C400]" },
+           { label: "Subscription access", status: "Free launch", accent: "bg-emerald-500/10 text-emerald-300" },
+         ].map((item) => (
+           <div key={item.label} className="rounded-2xl border border-[#242424] bg-[#111] p-4">
+             <div className="flex items-center justify-between gap-3">
+               <p className="text-sm font-medium text-white">{item.label}</p>
+               <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] ${item.accent}`}>
+                 {item.status}
+               </span>
+             </div>
+             <p className="mt-3 text-xs text-[#777]">
+               {item.status === "Free launch" ? "Enabled as a free public launch path." : "Hidden from the standard POS launch until a later release."}
+             </p>
+           </div>
+         ))}
+       </div>
+
+       <LaunchChecklist key={business?.id || "unassigned"} businessId={business?.id} />
+     </div>
+
+     {(notice || dataError) && (
+       <p role={dataError ? "alert" : "status"} className={`mb-5 rounded-xl border p-3 text-sm ${dataError ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-[#F5C400]/30 bg-[#F5C400]/10 text-[#F5C400]"}`}>
+         {dataError ? `Database error: ${dataError}` : notice}
+       </p>
      )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+     <div className="grid gap-6 lg:grid-cols-2">
         {/* BUSINESS PROFILE */}
         <section className={cardClass}>
           <div className="mb-6 flex items-center gap-3">
@@ -348,7 +536,7 @@ function SettingsPanel({
             ["Transaction alerts", "transactionAlerts"],
             ["Settlement updates", "settlementUpdates"],
             ["Content moderation", "contentModeration"],
-            ["Low BP inventory", "lowPointInventory"],
+            ["Low inventory", "lowPointInventory"],
           ].map(([label, key]) => (
             <label
               className="flex items-center justify-between border-b border-[#242424] py-4 text-sm text-[#AAA]"

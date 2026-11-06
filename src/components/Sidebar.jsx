@@ -2,15 +2,11 @@ import { NavLink } from "react-router-dom"
 import { useState } from "react"
 import {
   LayoutDashboard,
-  Monitor,
   Receipt,
   Users,
   Package,
-  BarChart3,
   Settings,
-  WalletCards,
   ClipboardList,
-  Gift,
   ChevronRight,
   LogOut,
   Megaphone,
@@ -41,11 +37,6 @@ function Sidebar({ sidebarOpen, setSidebarOpen, onLogout }) {
       icon: Package,
     },
     {
-      name: "Workstations",
-      path: "/workstations",
-      icon: Monitor,
-    },
-    {
       name: "Transactions",
       path: "/transactions",
       icon: Receipt,
@@ -59,21 +50,6 @@ function Sidebar({ sidebarOpen, setSidebarOpen, onLogout }) {
       name: "Customers",
       path: "/customers",
       icon: Users,
-    },
-    {
-      name: "Reports",
-      path: "/reports",
-      icon: BarChart3,
-    },
-    {
-      name: "BuzzPoints Wallet",
-      path: "/wallet",
-      icon: WalletCards,
-    },
-    {
-      name: "Rebates & Customized BP",
-      path: "/rebates",
-      icon: Gift,
     },
     {
       name: "System Logs",

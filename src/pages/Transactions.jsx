@@ -12,19 +12,20 @@ function Transactions() {
   const { transactions, refund, showReceipt, dataLoading, dataError } = useBusiness()
   const [query, setQuery] = useState("")
   const [filter, setFilter] = useState("ALL")
-  const [method, setMethod] = useState("ALL")
+  const [method, setMethod] = useState("CASH")
   const [notice, setNotice] = useState("")
   const [selectedTransaction, setSelectedTransaction] = useState(null)
   const [refundingId, setRefundingId] = useState(null)
   const visible = transactions.filter((item) =>
     (filter === "ALL" || (filter === "REFUNDED" ? isRefund(item) || item.status === "REFUNDED" : item.status === filter))
-    && (method === "ALL" || paymentMethod(item, transactions) === method)
+    && (paymentMethod(item, transactions) === "CASH")
+    && (method === "CASH" || method === "ALL")
     && `${item.id} ${item.customer} ${item.card} ${item.operatorName}`.toLowerCase().includes(query.toLowerCase()),
   )
 
   const doRefund = async (item) => {
     const confirmed = window.confirm(
-      `Return ${item.amount} ${paymentUnit(item)} to ${item.customer}'s ${item.type === "CUSTOMIZED_PURCHASE" ? "business-only CBP" : "shared BP"} wallet?`,
+      `Return ${item.amount} ${paymentUnit(item)} to ${item.customer}'s cash account?`,
     )
     if (!confirmed) return
     setRefundingId(item.id)
@@ -52,7 +53,7 @@ function Transactions() {
 
   return (
     <div className="mx-auto max-w-[1600px]">
-      <PageHeader eyebrow="LEDGER" title="Transactions" description="Cash and BuzzPoints sales, shared wallet loads, and refunds." action={<Button secondary onClick={exportCsv}><Receipt size={17} />Export CSV</Button>} />
+      <PageHeader eyebrow="LEDGER" title="Transactions" description="Cash sales and cash refunds for the launch POS." action={<Button secondary onClick={exportCsv}><Receipt size={17} />Export CSV</Button>} />
       {(notice || dataError || dataLoading) && (
         <p role={dataError ? "alert" : "status"} className={`mb-5 rounded-xl border p-3 text-sm ${dataError ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-[#F5C400]/30 bg-[#F5C400]/10 text-[#F5C400]"}`}>
           {dataError ? `Database error: ${dataError}` : notice || "Loading transactions…"}
@@ -60,7 +61,7 @@ function Transactions() {
       )}
       <FinanceSummary summary={summarizeFinance(visible.map((item) => ({ ...item, paymentMethod: paymentMethod(item, transactions) })))} loading={dataLoading} title="Sales audit · filtered transactions" />
       <div className={`${cardClass} mb-6 flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between`}>
-        <label className="text-xs text-[#AAA]">Payment method<select className={`${inputClass} mt-2`} value={method} onChange={(event) => setMethod(event.target.value)}><option value="ALL">Cash, BP and CBP</option><option value="CASH">Cash</option><option value="BUZZPOINTS">BuzzPoints</option><option value="CUSTOMIZED">Customized BuzzPoints</option></select></label>
+        <label className="text-xs text-[#AAA]">Payment method<select className={`${inputClass} mt-2`} value={method} onChange={(event) => setMethod(event.target.value)}><option value="CASH">Cash only</option></select></label>
         <div className="relative w-full md:max-w-md">
           <Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#666]" />
           <input className={`${inputClass} pl-10`} placeholder="Search transaction, customer, card, or operator" value={query} onChange={(event) => setQuery(event.target.value)} />
@@ -90,7 +91,7 @@ function Transactions() {
                       <button title="View details" onClick={() => setSelectedTransaction(item)} className="rounded-lg p-2 text-[#666] hover:bg-[#222] hover:text-white"><Eye size={16} /></button>
                       {["CUSTOMER_PURCHASE", "CASH_PURCHASE", "CUSTOMIZED_PURCHASE"].includes(item.type) && item.status === "COMPLETED" && <button title="Print receipt" aria-label={`Print receipt ${item.id}`} onClick={() => showReceipt(item.id)} className="rounded-lg p-2 text-[#666] hover:bg-[#222] hover:text-white"><Printer size={16} /></button>}
                       {(item.type === "CUSTOMIZED_PURCHASE" || (item.type === "CUSTOMER_PURCHASE" && item.metadata?.shared_transfer_id)) && item.status === "COMPLETED" && (
-                        <button title="Refund shared BP payment" disabled={refundingId === item.id} onClick={() => doRefund(item)} className="rounded-lg p-2 text-[#666] hover:bg-[#F5C400] hover:text-black disabled:opacity-50"><RotateCcw size={16} /></button>
+                        <button title="Refund cash payment" disabled={refundingId === item.id} onClick={() => doRefund(item)} className="rounded-lg p-2 text-[#666] hover:bg-[#F5C400] hover:text-black disabled:opacity-50"><RotateCcw size={16} /></button>
                       )}
                     </div>
                   </td>

@@ -30,6 +30,7 @@ import Rebates from "./pages/Rebates"
 import Wallet from "./pages/Wallet"
 import Content from "./pages/Content"
 import StaffPurchase from "./pages/StaffPurchase"
+import WhatsComingSoon from "./pages/WhatsComingSoon"
 import { BusinessProvider } from "./businessData"
 
 function App() {
@@ -370,6 +371,18 @@ function AppLayout({ selectedMembership, setSelectedMembership }) {
                   currentUser={currentUser}
                 >
                   <Settings changePassword={changePassword} />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/settings/coming-soon"
+              element={
+                <ProtectedRoute
+                  allowedRoles={["OWNER", "MANAGER"]}
+                  currentUser={currentUser}
+                >
+                  <WhatsComingSoon />
                 </ProtectedRoute>
               }
             />

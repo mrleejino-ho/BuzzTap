@@ -6,7 +6,7 @@ import { catalogCategories } from "../lib/catalog"
 import { Button, Field, Modal, PageHeader, Status, cardClass, inputClass } from "../components/BusinessUI"
 
 function ProductsServices() {
-  const { products, nextCatalogProductId, purchase, checkoutProduct, addProduct, updateProductStatus, updateProductType, deleteProduct, restockInventory, businessRole, dataLoading, dataError } = useBusiness()
+  const { products, nextCatalogProductId, checkoutProduct, addProduct, updateProductStatus, updateProductType, deleteProduct, restockInventory, businessRole, dataLoading, dataError } = useBusiness()
   const canManage = ["OWNER", "MANAGER"].includes(businessRole)
   const canPurchase = ["OWNER", "MANAGER", "CASHIER"].includes(businessRole)
   const [query, setQuery] = useState("")
@@ -19,7 +19,7 @@ function ProductsServices() {
   const [notice, setNotice] = useState("")
   const [checkout, setCheckout] = useState(null)
   const [paying, setPaying] = useState(false)
-  const [catalogPaymentMethod, setCatalogPaymentMethod] = useState("BUZZPOINTS")
+  const [catalogPaymentMethod, setCatalogPaymentMethod] = useState("CASH")
   const [paymentError, setPaymentError] = useState("")
   const [purchaseRequestId, setPurchaseRequestId] = useState(() => crypto.randomUUID())
   const [deleteItem, setDeleteItem] = useState(null)
@@ -44,8 +44,8 @@ function ProductsServices() {
     setPaymentError("")
     try {
       const details = { customerId: form.get("customerId"), productId: checkout.id, quantity: Number(form.get("quantity")), requestId: purchaseRequestId }
-      const result = catalogPaymentMethod === "CUSTOMIZED" ? await checkoutProduct({ ...details,paymentMethod:"CUSTOMIZED" }) : await purchase(details)
-      if (result.success) { setCheckout(null); setNotice(catalogPaymentMethod === "CUSTOMIZED" ? "Purchase paid with business-only Customized BuzzPoints." : "Purchase paid from the customer's shared BP wallet.") }
+      const result = await checkoutProduct({ ...details, paymentMethod: "CASH", cashAmount: Number(form.get("cashAmount")) || Number(checkout.price) * Number(form.get("quantity")) })
+      if (result.success) { setCheckout(null); setNotice(`Purchase completed for ${checkout.name}.`) }
       else setPaymentError(result.error)
     } catch { setPaymentError("Payment could not be completed. Retry with the same details.") }
     finally { setPaying(false) }
@@ -98,10 +98,10 @@ function ProductsServices() {
               const ok = await updateProductType(product.id, event.target.value)
               setNotice(ok ? `${product.name} item type updated.` : "Item type update failed.")
             }}><option value="PRODUCT">Product</option><option value="SERVICE">Service</option><option value="WORKSTATION">From Workstation</option></select></Field>
-            {canPurchase && (product.item_type || "PRODUCT") === "PRODUCT" && product.status === "ACTIVE" && <Button secondary disabled={!product.stock} onClick={() => { setCheckout(product); setPurchaseRequestId(crypto.randomUUID()); setPaymentError("") }}>Customer points purchase</Button>}
+            {canPurchase && (product.item_type || "PRODUCT") === "PRODUCT" && product.status === "ACTIVE" && <Button secondary disabled={!product.stock} onClick={() => { setCheckout(product); setPurchaseRequestId(crypto.randomUUID()); setPaymentError("") }}>Customer purchase</Button>}
             <div className="mt-6 flex items-center justify-between border-t border-[#242424] pt-4">
               <div>
-                <span className="text-xl font-bold text-[#F5C400]">{product.price} BP</span>
+                <span className="text-xl font-bold text-[#F5C400]">{product.price} cash</span>
                 {(product.item_type || "PRODUCT") === "PRODUCT" && <p className="mt-1 text-xs text-[#777]">{product.stock} in stock</p>}
               </div>
               <div className="flex items-center gap-2">
@@ -128,18 +128,19 @@ function ProductsServices() {
         <Field label="Description"><textarea className={inputClass} name="description" required rows="2" /></Field>
         <Field label="Category"><input className={inputClass} name="category" required placeholder="Choose or enter a category" list="catalog-categories" autoComplete="off" /></Field>
         <datalist id="catalog-categories">{categories.map((category) => <option key={category} value={category} />)}</datalist>
-        <Field label="Unit price (cash, BP or CBP)"><input className={inputClass} name="price" type="number" min="0" required placeholder="50" /></Field>
+        <Field label="Unit price (cash)"><input className={inputClass} name="price" type="number" min="0" required placeholder="50" /></Field>
         {itemType === "PRODUCT" && <Field label="Opening Stock Quantity"><input className={inputClass} name="stock" type="number" min="0" step="1" required defaultValue="0" /></Field>}
         {addError && <p role="alert" className="text-sm text-red-300">{addError}</p>}
         <Button type="submit" disabled={adding || dataLoading || !!dataError}>{adding ? "Adding..." : "Add Item"}</Button>
       </form></Modal>}
       {checkout && <Modal title={`Purchase · ${checkout.name}`} onClose={() => { if (!paying) setCheckout(null) }}><form onSubmit={pay} className="space-y-4">
-        <Field label="Payment method"><select className={inputClass} value={catalogPaymentMethod} disabled={paying} onChange={(event)=>{setCatalogPaymentMethod(event.target.value);setPurchaseRequestId(crypto.randomUUID())}}><option value="BUZZPOINTS">BuzzPoints (shared BP)</option><option value="CUSTOMIZED">Customized BuzzPoints (this business)</option></select></Field>
+        <Field label="Payment method"><select className={inputClass} value={catalogPaymentMethod} disabled={paying} onChange={(event)=>{setCatalogPaymentMethod(event.target.value);setPurchaseRequestId(crypto.randomUUID())}}><option value="CASH">Cash</option></select></Field>
         <PaymentCustomer key={catalogPaymentMethod} disabled={paying} onChange={() => setPurchaseRequestId(crypto.randomUUID())} />
         <Field label="Quantity"><input className={inputClass} name="quantity" type="number" required min="1" max={checkout.stock} step="1" defaultValue="1" disabled={paying} onChange={() => setPurchaseRequestId(crypto.randomUUID())} /></Field>
-        <p className="text-sm text-[#AAA]">{checkout.price} {catalogPaymentMethod === "CUSTOMIZED" ? "CBP" : "BP"} per unit. {catalogPaymentMethod === "CUSTOMIZED" ? "Redeems rewards issued by this business; shared BP is unchanged." : "Payment credits your shared business BP wallet."}</p>
+        <Field label="Cash received"><input className={inputClass} name="cashAmount" type="number" min={0.01} step="0.01" required disabled={paying} placeholder="Enter amount paid by customer" /></Field>
+        <p className="text-sm text-[#AAA]">{checkout.price} cash per unit. Launch payment flow is cash-only.</p>
         {paymentError && <p role="alert" className="text-sm text-red-300">{paymentError}</p>}
-        <Button type="submit" disabled={paying}>{paying ? "Paying…" : catalogPaymentMethod === "CUSTOMIZED" ? "Pay with Customized BuzzPoints" : "Pay with Shared BuzzPoints"}</Button>
+        <Button type="submit" disabled={paying}>{paying ? "Paying…" : "Complete Cash Purchase"}</Button>
       </form></Modal>}
       {restockProduct && <Modal title={`Restock ${restockProduct.name}`} onClose={() => setRestockProduct(null)}><form onSubmit={restock} className="space-y-4">
         <p className="text-sm text-[#AAA]">Current stock: <strong className="text-white">{restockProduct.stock}</strong></p>

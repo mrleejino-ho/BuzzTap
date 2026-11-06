@@ -115,7 +115,7 @@ export default function StaffPurchase() {
                   <button type="button" aria-label="Increase quantity" disabled={quantity >= selectedProduct.stock} onClick={() => setQuantity((current) => Math.min(selectedProduct.stock, current + 1))} className="rounded-xl border border-[#333] p-2 text-white disabled:opacity-50"><Plus size={16} /></button>
                 </div>
               </div>
-              <p className="rounded-2xl border border-[#242424] bg-[#181818] p-4 text-sm text-[#AAA]">BuzzPoints total: {selectedProduct.price * quantity} BP. Choose the customer and payment method at checkout.</p>
+              <p className="rounded-2xl border border-[#242424] bg-[#181818] p-4 text-sm text-[#AAA]">Cash total: {selectedProduct.price * quantity} cash. Choose the customer and complete the cash payment at checkout.</p>
               <Button type="submit" disabled={submitting || !selectedProduct.stock}><Plus size={17} />Continue to checkout</Button>
             </form>
           )}
@@ -123,14 +123,13 @@ export default function StaffPurchase() {
       </div>
 
       {checkout && <Modal title={`Purchase · ${checkout.name}`} onClose={() => { if (!submitting) setCheckout(null) }}><form onSubmit={pay} className="space-y-4" onChange={changeRequest}>
-        <p className="text-sm text-[#AAA]">{checkout.quantity} units · {checkout.price * checkout.quantity} {paymentMethod === "CASH" ? "cash" : paymentMethod === "CUSTOMIZED" ? "CBP" : "BP"}</p>
-        <Field label="Payment method"><select className={inputClass} value={paymentMethod} disabled={submitting} onChange={(event) => setPaymentMethod(event.target.value)}><option value="CASH">Cash</option>{customerType === "ACCOUNT" && <><option value="BUZZPOINTS">BuzzPoints (shared BP)</option><option value="CUSTOMIZED">Customized BuzzPoints (this business)</option></>}</select></Field>
+        <p className="text-sm text-[#AAA]">{checkout.quantity} units · {checkout.price * checkout.quantity} cash</p>
         <Field label="Customer type"><select className={inputClass} value={customerType} disabled={submitting} onChange={(event) => { setCustomerType(event.target.value); setPaymentMethod("CASH") }}><option value="ACCOUNT">BuzzTap account customer</option><option value="LOCAL">Local customer (no BuzzTap account)</option></select></Field>
-        {customerType === "ACCOUNT" ? <PaymentCustomer key={paymentMethod} allowTap={paymentMethod !== "CASH"} disabled={submitting} onChange={changeRequest} /> : <Field label="Customer name"><input className={inputClass} name="guestName" required maxLength={160} disabled={submitting} placeholder="Local customer name" /></Field>}
-        {paymentMethod === "CASH" ? <div className="space-y-3"><p className="text-sm font-semibold text-[#F5C400]">Total due: {(checkout.price * checkout.quantity).toLocaleString()} cash</p><Field label="Cash received"><input className={inputClass} name="cashAmount" type="number" min={Math.max(0.01, checkout.price * checkout.quantity)} step="0.01" required disabled={submitting} value={cashReceived} onChange={(event) => setCashReceived(event.target.value)} placeholder="Amount handed by customer" /></Field><p className="text-sm text-[#AAA]">Change due: {Math.max(0, Math.round((Number(cashReceived || 0) - checkout.price * checkout.quantity) * 100) / 100).toLocaleString()} cash</p></div> : <p className="text-sm text-[#AAA]">{checkout.price * checkout.quantity} {paymentMethod === "CUSTOMIZED" ? "CBP from this business only" : "BP from the shared wallet"} will be requested for customer approval. No points are deducted until the approved payment is completed.</p>}
-        {customerType === "LOCAL" && <p className="text-xs text-[#AAA]">Local customers can pay with cash only.</p>}
+        {customerType === "ACCOUNT" ? <PaymentCustomer key={paymentMethod} allowTap={false} disabled={submitting} onChange={changeRequest} /> : <Field label="Customer name"><input className={inputClass} name="guestName" required maxLength={160} disabled={submitting} placeholder="Local customer name" /></Field>}
+        <div className="space-y-3"><p className="text-sm font-semibold text-[#F5C400]">Total due: {(checkout.price * checkout.quantity).toLocaleString()} cash</p><Field label="Cash received"><input className={inputClass} name="cashAmount" type="number" min={Math.max(0.01, checkout.price * checkout.quantity)} step="0.01" required disabled={submitting} value={cashReceived} onChange={(event) => setCashReceived(event.target.value)} placeholder="Amount handed by customer" /></Field><p className="text-sm text-[#AAA]">Change due: {Math.max(0, Math.round((Number(cashReceived || 0) - checkout.price * checkout.quantity) * 100) / 100).toLocaleString()} cash</p></div>
+        {customerType === "LOCAL" && <p className="text-xs text-[#AAA]">Local customers pay in cash only for the launch POS version.</p>}
         {checkoutError && <p role="alert" className="text-sm text-red-300">{checkoutError}</p>}
-        <div className="flex gap-3"><Button secondary disabled={submitting} onClick={() => setCheckout(null)}>Cancel</Button><Button type="submit" disabled={submitting}>{submitting ? "Processing…" : paymentMethod === "CASH" ? "Confirm Purchase" : "Request customer approval"}</Button></div>
+        <div className="flex gap-3"><Button secondary disabled={submitting} onClick={() => setCheckout(null)}>Cancel</Button><Button type="submit" disabled={submitting}>{submitting ? "Processing…" : "Confirm Purchase"}</Button></div>
       </form></Modal>}
       <CustomerPaymentRequests kind="PRODUCT" />
       <section className={`${cardClass} mt-6`}>
