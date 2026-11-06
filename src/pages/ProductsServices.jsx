@@ -6,12 +6,18 @@ import { createProductId } from "../lib/catalog"
 import { Button, Field, Modal, PageHeader, Status, cardClass, inputClass } from "../components/BusinessUI"
 
 function ProductsServices() {
-  const { products, inventoryMovements, checkoutProduct, addProduct, updateProductStatus, deleteProduct, restockInventory, businessRole, dataLoading, dataError } = useBusiness()
+  const { products, inventoryMovements, checkoutProduct, addProduct, updateCatalogItem, updateProductStatus, deleteProduct, restockInventory, businessRole, dataLoading, dataError } = useBusiness()
   const canManage = ["OWNER", "MANAGER"].includes(businessRole)
   const canPurchase = ["OWNER", "MANAGER", "CASHIER"].includes(businessRole)
   const [query, setQuery] = useState("")
   const [viewMode, setViewMode] = useState("grid")
   const [modal, setModal] = useState(false)
+  const [updateModal, setUpdateModal] = useState(false)
+  const [updateItemId, setUpdateItemId] = useState("")
+  const [updateName, setUpdateName] = useState("")
+  const [updatePrice, setUpdatePrice] = useState("")
+  const [updating, setUpdating] = useState(false)
+  const [updateError, setUpdateError] = useState("")
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState("")
   const [itemType, setItemType] = useState("PRODUCT")
@@ -36,6 +42,50 @@ function ProductsServices() {
       else setDeleteError(result.error)
     } catch { setDeleteError("Item could not be deleted. Please try again.") }
     finally { setDeleting(false) }
+  }
+  const openUpdateModal = () => {
+    setUpdateItemId("")
+    setUpdateName("")
+    setUpdatePrice("")
+    setUpdateError("")
+    setUpdateModal(true)
+  }
+  const selectItemToUpdate = (id) => {
+    const item = products.find((product) => product.id === id)
+    setUpdateItemId(id)
+    setUpdateName(item?.name || "")
+    setUpdatePrice(item ? String(item.price) : "")
+    setUpdateError("")
+  }
+  const saveItemUpdate = async (event) => {
+    event.preventDefault()
+    if (updating || !updateItemId) return
+    const name = updateName.trim()
+    const price = Number(updatePrice)
+    if (!name) {
+      setUpdateError("Enter an item name.")
+      return
+    }
+    if (!Number.isFinite(price) || price < 0) {
+      setUpdateError("Enter a valid non-negative price.")
+      return
+    }
+
+    setUpdating(true)
+    setUpdateError("")
+    try {
+      const result = await updateCatalogItem(updateItemId, { name, price })
+      if (result.success) {
+        setNotice("Item updated successfully.")
+        setUpdateModal(false)
+      } else {
+        setUpdateError(result.error || "Item could not be updated.")
+      }
+    } catch (error) {
+      setUpdateError(error.message || "Item could not be updated.")
+    } finally {
+      setUpdating(false)
+    }
   }
   const pay = async (event) => {
     event.preventDefault()
@@ -86,7 +136,7 @@ function ProductsServices() {
 
   return (
     <div className="mx-auto max-w-[1600px]">
-      <PageHeader title="Products & Services" description={canManage ? "Manage your catalog, prices, availability, and product stock." : "Browse your catalog, prices, availability, and product stock."} action={canManage && <Button disabled={dataLoading || !!dataError} onClick={() => { setItemType("PRODUCT"); setAddError(""); setModal(true) }}><Plus size={17} />Add Item</Button>} />
+      <PageHeader title="Products & Services" description={canManage ? "Manage your catalog, prices, availability, and product stock." : "Browse your catalog, prices, availability, and product stock."} action={canManage && <div className="flex flex-wrap gap-3"><Button disabled={dataLoading || !!dataError} onClick={() => { setItemType("PRODUCT"); setAddError(""); setModal(true) }}><Plus size={17} />Add Item</Button><Button secondary disabled={dataLoading || !!dataError || !products.length} onClick={openUpdateModal}>Update Item</Button></div>} />
       {(notice || dataError || dataLoading) && <p role={dataError ? "alert" : "status"} className={`mb-5 rounded-xl border p-3 text-sm ${dataError ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-[#F5C400]/30 bg-[#F5C400]/10 text-[#F5C400]"}`}>{dataError ? `Database error: ${dataError}` : notice || "Loading catalog…"}</p>}
       <div className={`${cardClass} mb-6 flex items-center gap-3 p-4`}>
         <Search size={17} className="text-[#666]" />
@@ -168,6 +218,15 @@ function ProductsServices() {
         {itemType === "PRODUCT" && <Field label="Opening Stock Quantity"><input className={inputClass} name="stock" type="number" min="0" step="1" required defaultValue="0" /></Field>}
         {addError && <p role="alert" className="text-sm text-red-300">{addError}</p>}
         <Button type="submit" disabled={adding || dataLoading || !!dataError}>{adding ? "Adding..." : "Add Item"}</Button>
+      </form></Modal>}
+      {updateModal && <Modal title="Update Catalog Item" onClose={() => { if (!updating) setUpdateModal(false) }}><form onSubmit={saveItemUpdate} className="space-y-4">
+        <Field label="Select item"><select className={inputClass} required value={updateItemId} disabled={updating} onChange={(event) => selectItemToUpdate(event.target.value)}><option value="" disabled>Choose an item</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name} · {product.id}</option>)}</select></Field>
+        {updateItemId && <>
+          <Field label="Item name"><input className={inputClass} required maxLength={160} value={updateName} disabled={updating} onChange={(event) => setUpdateName(event.target.value)} /></Field>
+          <Field label="Price (cash)"><input className={inputClass} type="number" min="0" step="0.01" required value={updatePrice} disabled={updating} onChange={(event) => setUpdatePrice(event.target.value)} /></Field>
+        </>}
+        {updateError && <p role="alert" className="text-sm text-red-300">{updateError}</p>}
+        <div className="flex justify-end gap-3"><Button secondary disabled={updating} onClick={() => setUpdateModal(false)}>Cancel</Button><Button type="submit" disabled={updating || !updateItemId}>{updating ? "Saving…" : "Save Changes"}</Button></div>
       </form></Modal>}
       {checkout && <Modal title={`Purchase · ${checkout.name}`} onClose={() => { if (!paying) setCheckout(null) }}><form onSubmit={pay} className="space-y-4">
         <Field label="Payment method"><select className={inputClass} value={catalogPaymentMethod} disabled={paying} onChange={(event)=>{setCatalogPaymentMethod(event.target.value);setPurchaseRequestId(crypto.randomUUID())}}><option value="CASH">Cash</option></select></Field>

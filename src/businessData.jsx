@@ -255,6 +255,28 @@ export function BusinessProvider({ children, selectedMembership }) {
     await loadData()
     return { success: true }
   }
+  const updateCatalogItem = async (id, values) => {
+    if (!business?.id) {
+      return { success: false, error: "No active business is available." }
+    }
+
+    const { data: updatedItems, error } = await supabase.from("products_services")
+      .update({ name: values.name, price: values.price })
+      .eq("business_id", business.id)
+      .eq("id", id)
+      .select("id")
+
+    if (error) {
+      setDataError(error.message)
+      return { success: false, error: error.message }
+    }
+    if (!updatedItems?.length) {
+      return { success: false, error: "The item was not found or you do not have permission to update it." }
+    }
+
+    await loadData()
+    return { success: true }
+  }
   const updateProductType = (id, item_type) => update("products_services", id, { item_type })
   const updateProductStatus = (id, status) => update("products_services", id, { status })
   const deleteProduct = async (id) => {
@@ -537,7 +559,7 @@ export function BusinessProvider({ children, selectedMembership }) {
       user, profile, memberships, activeMemberships, currentMembership, business, businessRole,
       isAuthenticated, authLoading, authError, dataLoading, dataError, refreshBusinessData: loadData,
       ...data, wallet, finance, financeAudit, showReceipt: (id, kind = "TRANSACTION") => setReceiptRequest({ kind, id, autoPrint: false }), authenticateStaff, loadPoints, purchase, checkoutProduct, refund, addActivity, addCustomer,
-      updateCustomerStatus, addCard, assignCard, replaceCard, updateCardStatus, addProduct, updateProductStatus, updateProductType, deleteProduct,
+      updateCustomerStatus, addCard, assignCard, replaceCard, updateCardStatus, addProduct, updateCatalogItem, updateProductStatus, updateProductType, deleteProduct,
       addWorkstation, updateWorkstationStatus, addStaff, updateStaffStatus, deleteStaff, purchaseInventory,
       requestPurchase, requestSettlement, saveBusinessSettings, changeWorkstationSession, captureCustomerPayment,
       issueInventory, restockInventory,
